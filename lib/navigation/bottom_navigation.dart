@@ -22,12 +22,9 @@ class BottomNavigation extends StatelessWidget {
         Navigator.pushReplacementNamed(context, '/alldevice');
         break;
       case 2:
-        Navigator.pushReplacementNamed(context, '/profile');
-        break;
-      case 3:
         Navigator.pushReplacementNamed(context, '/history');
         break;
-      case 4:
+      case 3:
         Navigator.pushReplacementNamed(context, '/notifications');
         break;
     }
@@ -50,12 +47,9 @@ class BottomNavigation extends StatelessWidget {
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.devices),
-          label: 'Device',
+          label: 'Service',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: 'Profile List',
-        ),
+
         BottomNavigationBarItem(
           icon: Icon(Icons.history),
           label: 'History',
