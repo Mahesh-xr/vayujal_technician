@@ -341,50 +341,50 @@ class AdminAction {
       throw Exception('Failed to create service request: $e');
     }
   }
-
-  /// Get all service requests
-  static Future<List<Map<String, dynamic>>> getAllServiceRequests() async {
-    try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('serviceRequests')
-          .orderBy('createdAt', descending: true)
-          .get();
-      
-      List<Map<String, dynamic>> serviceRequests = snapshot.docs.map((doc) => {
-        'id': doc.id,
-        ...doc.data() as Map<String, dynamic>,
-      }).toList();
-      
-      print("✅ Fetched ${serviceRequests.length} service requests.");
-      return serviceRequests;
-    } catch (e) {
-      print("❌ Error fetching service requests: $e");
-      return [];
-    }
+/// Get all service requests for a specific employee
+/// Get all service requests for a specific employee
+static Future<List<Map<String, dynamic>>> getEmployeeServiceRequests(String employeeId) async {
+  try {
+    QuerySnapshot snapshot = await _firestore
+        .collection('serviceRequests')
+        .where('serviceDetails.assignedTo', isEqualTo: employeeId) // Filter by employee ID in serviceDetails
+        .orderBy('createdAt', descending: true)
+        .get();
+        
+    List<Map<String, dynamic>> serviceRequests = snapshot.docs.map((doc) => {
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    }).toList();
+        
+    print("✅ Fetched ${serviceRequests.length} service requests for employee: $employeeId");
+    return serviceRequests;
+  } catch (e) {
+    print("❌ Error fetching service requests for employee: $e");
+    return [];
   }
+}
 
-  /// Get service requests by status
-  static Future<List<Map<String, dynamic>>> getServiceRequestsByStatus(String status) async {
-    try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('serviceRequests')
-          .where('status', isEqualTo: status)
-          .orderBy('createdAt', descending: true)
-          .get();
-      
-      List<Map<String, dynamic>> serviceRequests = snapshot.docs.map((doc) => {
-        'id': doc.id,
-        ...doc.data() as Map<String, dynamic>,
-      }).toList();
-      
-      print("✅ Fetched ${serviceRequests.length} service requests with status: $status");
-      return serviceRequests;
-    } catch (e) {
-      print("❌ Error fetching service requests by status: $e");
-      return [];
-    }
+/// Get service requests by status for a specific employee
+static Future<List<Map<String, dynamic>>> getEmployeeServiceRequestsByStatus(String employeeId, String status) async {
+  try {
+    QuerySnapshot snapshot = await _firestore
+        .collection('serviceRequests')
+        .where('serviceDetails.assignedTo', isEqualTo: employeeId) // Filter by employee ID in serviceDetails
+        .where('status', isEqualTo: status) // Filter by status in serviceDetails
+        .get();
+        
+    List<Map<String, dynamic>> serviceRequests = snapshot.docs.map((doc) => {
+      'id': doc.id,
+      ...doc.data() as Map<String, dynamic>,
+    }).toList();
+        
+    print("✅ Fetched ${serviceRequests.length} service requests for employee: $employeeId with status: $status");
+    return serviceRequests;
+  } catch (e) {
+    print("❌ Error fetching service requests for employee by status: $e");
+    return [];
   }
-
+}
   /// Assign task to employee
   static Future<String> assignTaskToEmployee({
     required String serviceRequestId,

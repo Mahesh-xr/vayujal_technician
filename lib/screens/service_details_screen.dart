@@ -27,6 +27,7 @@ class ServiceDetailScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text('Service History'),
+                  
                 ),
                 
                 

@@ -76,6 +76,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> with Single
                 Tab(text: 'Service History'),
                 Tab(text: 'AMC History'),
               ],
+              
               labelColor: Colors.black,
               unselectedLabelColor: Colors.grey,
               indicatorColor: Colors.blue,

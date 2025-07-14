@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vayujal_technician/screens/all_service_request_page.dart';
 import 'action_button.dart';
 
 class QuickActionsSection extends StatelessWidget {
@@ -26,35 +27,34 @@ class QuickActionsSection extends StatelessWidget {
   Widget _buildActionButtons(BuildContext context) {
     return Column(
       children: [
-        GestureDetector(
-          onTap: () {
-            
-            Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const QuickActionsSection()),
-        );
+        // View All Tasks Button
+        ActionButton(
+          title: 'View Tasks',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AllServiceRequestsPage(),
+              ),
+            );
           },
-          child: ActionButton(
-            title: 'View Tasks', 
-            onPressed: () {
-
-
-              Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const QuickActionsSection()),
-        );
-              
-            },
-          ),
         ),
         const SizedBox(height: 12),
-         ActionButton(
+        
+        // Pending Services Button - Navigate to In Progress filter
+        ActionButton(
           onPressed: () {
-            
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AllServiceRequestsPage(
+                  initialFilter: 'In Progress', // Set initial filter to In Progress
+                ),
+              ),
+            );
           },
-          title: 'Pending Services', 
+          title: 'Pending Services',
         ),
-       
       ],
     );
   }

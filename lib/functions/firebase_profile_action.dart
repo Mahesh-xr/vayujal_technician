@@ -13,48 +13,44 @@ class FirebaseProfileActions {
   /// Upload profile image to Firebase Storage
   static Future<String?> uploadProfileImage(XFile imageFile) async {
     try {
+      print('=== UPLOAD PROFILE IMAGE START ===');
+      
       final User? user = _auth.currentUser;
-      if (user == null) throw Exception('User not authenticated');
-
-      // Verify Firebase Storage is properly configured
-      final String bucketName = _storage.bucket;
-      print('Using Firebase Storage bucket: $bucketName');
-      
-      // Validate AppConstants.profileImagesPath
-      print('Profile images path from constants: "${AppConstants.profileImagesPath}"');
-
-      final String fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      print('Uploading file: $fileName');
-      
-      // Create storage reference with proper path
-      Reference storageRef;
-      
-      // Option 1: Try with your constants path
-      try {
-        storageRef = _storage.ref().child('${AppConstants.profileImagesPath}/$fileName');
-        print('Storage path: ${AppConstants.profileImagesPath}/$fileName');
-      } catch (e) {
-        // Option 2: Fallback to simple path if constants cause issues
-        print('Constants path failed, using fallback: $e');
-        storageRef = _storage.ref().child('profile_images/$fileName');
-        print('Using fallback path: profile_images/$fileName');
+      print('Current user: ${user?.uid}');
+      if (user == null) {
+        print('ERROR: User not authenticated');
+        throw Exception('User not authenticated');
       }
 
-      // Verify file exists and get info
+      // Create unique filename
+      final String fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      print('Generated filename: $fileName');
+      
+      // Create storage reference with clean path
+      final Reference storageRef = _storage.ref().child('profile_images/$fileName');
+      print('Storage reference created: profile_images/$fileName');
+      print('Storage bucket: ${_storage.bucket}');
+      
+      // Validate file
       final file = File(imageFile.path);
+      print('File path: ${imageFile.path}');
+      print('File exists: ${file.existsSync()}');
+      
       if (!file.existsSync()) {
+        print('ERROR: File not found at path: ${imageFile.path}');
         throw Exception('File not found at path: ${imageFile.path}');
       }
 
+      // Check file size (max 5MB)
       final int fileSize = await file.length();
       print('File size: $fileSize bytes');
-
-      // Check file size limit (5MB)
+      
       if (fileSize > 5 * 1024 * 1024) {
+        print('ERROR: File too large: $fileSize bytes');
         throw Exception('File too large. Maximum size is 5MB');
       }
 
-      // Upload with proper metadata
+      // Upload with metadata
       final metadata = SettableMetadata(
         contentType: 'image/jpeg',
         cacheControl: 'max-age=3600',
@@ -64,123 +60,59 @@ class FirebaseProfileActions {
         },
       );
 
-      print('Starting upload to Firebase Storage...');
+      print('Starting upload task...');
       final UploadTask uploadTask = storageRef.putFile(file, metadata);
       
       // Monitor upload progress
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         double progress = snapshot.bytesTransferred / snapshot.totalBytes;
-        print('Upload progress: ${(progress * 100).toStringAsFixed(2)}%');
+        print('Upload progress: ${(progress * 100).toStringAsFixed(2)}% (${snapshot.bytesTransferred}/${snapshot.totalBytes} bytes)');
       });
 
-      // Wait for upload to complete
+      // Wait for completion
+      print('Waiting for upload to complete...');
       final TaskSnapshot snapshot = await uploadTask;
-      print('Upload completed successfully');
+      print('Upload task completed. State: ${snapshot.state}');
 
-      // Get download URL
+      // Get the actual download URL
+      print('Getting download URL...');
       final String downloadUrl = await snapshot.ref.getDownloadURL();
       print('Download URL obtained: $downloadUrl');
+      print('=== UPLOAD PROFILE IMAGE SUCCESS ===');
       
       return downloadUrl;
       
     } on FirebaseException catch (e) {
-      print('Firebase error during upload:');
+      print('=== FIREBASE STORAGE ERROR ===');
       print('Code: ${e.code}');
       print('Message: ${e.message}');
       print('Plugin: ${e.plugin}');
       
-      // Handle specific Firebase Storage errors
+      // Handle specific errors
       switch (e.code) {
         case 'object-not-found':
-          print('Storage bucket or path not found. Check your Firebase configuration.');
+          print('ERROR: Storage bucket not found. Check Firebase configuration.');
           break;
         case 'unauthorized':
-          print('Unauthorized. Check your Firebase Storage rules.');
+          print('ERROR: Unauthorized. Check Firebase Storage rules.');
           break;
         case 'retry-limit-exceeded':
-          print('Upload failed after multiple retries. Check your internet connection.');
+          print('ERROR: Upload failed after retries. Check internet connection.');
           break;
         case 'invalid-checksum':
-          print('File checksum mismatch. File may be corrupted.');
+          print('ERROR: File corrupted during upload.');
           break;
         default:
-          print('Unknown Firebase error: ${e.code}');
+          print('ERROR: Unknown Firebase error: ${e.code}');
       }
+      print('=== FIREBASE STORAGE ERROR END ===');
       return null;
       
     } catch (e) {
-      print('General error uploading profile image: $e');
-      return null;
-    }
-  }
-
-  /// Simplified upload method that should work reliably
-  static Future<String?> uploadProfileImageSimple(XFile imageFile) async {
-    try {
-      final User? user = _auth.currentUser;
-      if (user == null) throw Exception('User not authenticated');
-
-      final String fileName = '${user.uid}.jpg';
-      
-      // Use simple path - this is most likely to work
-      final Reference storageRef = _storage.ref().child('profile_images').child(fileName);
-      
-      print('Simple upload - Storage path: profile_images/$fileName');
-
-      final file = File(imageFile.path);
-      if (!file.existsSync()) {
-        throw Exception('File not found');
-      }
-
-      print('File size: ${await file.length()} bytes');
-
-      // Basic upload
-      final UploadTask uploadTask = storageRef.putFile(file);
-      
-      // Monitor progress
-      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-        double progress = snapshot.bytesTransferred / snapshot.totalBytes;
-        print('Upload progress: ${(progress * 100).toStringAsFixed(2)}%');
-      });
-      
-      final TaskSnapshot snapshot = await uploadTask;
-      final String downloadUrl = "www.sample.png";
-      
-      print('Simple upload successful: $downloadUrl');
-      return downloadUrl;
-      
-    } catch (e) {
-      print('Simple upload error: $e');
-      return null;
-    }
-  }
-  static Future<String?> uploadProfileImageAlternative(XFile imageFile) async {
-    try {
-      final User? user = _auth.currentUser;
-      if (user == null) throw Exception('User not authenticated');
-
-      final String fileName = '${user.uid}.jpg';
-      
-      // Use the most basic path structure to avoid 404 errors
-      final Reference storageRef = _storage.ref('profile_images/$fileName');
-      
-      print('Alternative upload - Storage path: profile_images/$fileName');
-
-      final file = File(imageFile.path);
-      if (!file.existsSync()) {
-        throw Exception('File not found');
-      }
-
-      // Simple upload without complex metadata
-      final UploadTask uploadTask = storageRef.putFile(file);
-      final TaskSnapshot snapshot = await uploadTask;
-      final String downloadUrl = await snapshot.ref.getDownloadURL();
-      
-      print('Alternative upload successful: $downloadUrl');
-      return downloadUrl;
-      
-    } catch (e) {
-      print('Alternative upload error: $e');
+      print('=== GENERAL UPLOAD ERROR ===');
+      print('Error: $e');
+      print('Error type: ${e.runtimeType}');
+      print('=== GENERAL UPLOAD ERROR END ===');
       return null;
     }
   }
@@ -217,7 +149,7 @@ class FirebaseProfileActions {
     }
   }
 
-  /// Complete profile setup with better error handling
+  /// Complete profile setup with working image upload
   static Future<Map<String, dynamic>> completeProfileSetup({
     required String name,
     required String employeeId,
@@ -229,45 +161,50 @@ class FirebaseProfileActions {
     try {
       String? imageUrl;
 
-      // if (profileImage != null) {
-      //   print('Testing storage connectivity...');
-      //   final bool isStorageAccessible = await testStorageConnectivity();
-        
-      //   if (!isStorageAccessible) {
-      //     return {
-      //       'success': false,
-      //       'message': 'Cannot access Firebase Storage. Please check your configuration.',
-      //     };
-      //   }
+      // Debug: Check if image is provided
+      print('Profile image provided: ${profileImage != null}');
+      if (profileImage != null) {
+        print('Image path: ${profileImage.path}');
+        print('Image name: ${profileImage.name}');
+      }
 
-      //   print('Starting image upload...');
+      // Handle profile image upload if provided
+      if (profileImage != null) {
+        print('=== STARTING IMAGE UPLOAD PROCESS ===');
+        print('Testing storage connectivity...');
         
-      //   // Try the simple method first (most likely to work)
-      //   imageUrl = await uploadProfileImageSimple(profileImage);
+        final bool isStorageAccessible = await testStorageConnectivity();
+        print('Storage accessible: $isStorageAccessible');
         
-      //   // If simple method fails, try primary upload method
-      //   if (imageUrl == null) {
-      //     print('Simple upload failed, trying primary method...');
-      //     imageUrl = await uploadProfileImage(profileImage);
-      //   }
-        
-      //   // If both fail, try alternative
-      //   if (imageUrl == null) {
-      //     print('Primary upload failed, trying alternative method...');
-      //     imageUrl = await uploadProfileImageAlternative(profileImage);
-      //   }
-        
-      //   if (imageUrl == null) {
-      //     return {
-      //       'success': false,
-      //       'message': 'Failed to upload profile image. Please check your internet connection and Firebase configuration.',
-      //     };
-      //   }
-        
-      //   print('Image uploaded successfully: $imageUrl');
-      // }
+        if (!isStorageAccessible) {
+          print('Storage not accessible - returning error');
+          return {
+            'success': false,
+            'message': 'Cannot access Firebase Storage. Please check your configuration.',
+          };
+        }
 
-      // Save profile data
+        print('Starting image upload...');
+        
+        // Upload the image and get the actual URL
+        imageUrl = await uploadProfileImage(profileImage);
+        print('Upload result: $imageUrl');
+        
+        if (imageUrl == null) {
+          print('Image upload failed - returning error');
+          return {
+            'success': false,
+            'message': 'Failed to upload profile image. Please check your internet connection and try again.',
+          };
+        }
+        
+        print('Image uploaded successfully: $imageUrl');
+        print('=== IMAGE UPLOAD PROCESS COMPLETED ===');
+      } else {
+        print('No profile image provided - skipping upload');
+      }
+
+      // Save profile data with the actual image URL
       print('Saving profile data...');
       final bool success = await saveTechnicianProfile(
         name: name,
@@ -275,19 +212,21 @@ class FirebaseProfileActions {
         mobileNumber: mobileNumber,
         email: email,
         designation: designation,
-        profileImageUrl: "sample",
+        profileImageUrl: imageUrl, // Use the actual URL, not hardcoded
       );
       
-      if (true) {
+      if (success) {
+        print('Profile setup completed successfully');
         return {
           'success': true,
           'message': 'Profile setup completed successfully',
-          'imageUrl': "sample",
+          'imageUrl': imageUrl,
         };
       } else {
+        print('Failed to save profile data');
         return {
           'success': false,
-          'message': 'Profile image uploaded but failed to save profile data',
+          'message': 'Failed to save profile data. Please try again.',
         };
       }
     } catch (e) {
@@ -330,6 +269,7 @@ class FirebaseProfileActions {
           .doc(user.uid)
           .set(profileData, SetOptions(merge: true));
 
+      print('Profile data saved successfully');
       return true;
     } catch (e) {
       print('Error saving technician profile: $e');

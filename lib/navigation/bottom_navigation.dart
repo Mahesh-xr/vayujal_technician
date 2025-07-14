@@ -5,10 +5,10 @@ class BottomNavigation extends StatelessWidget {
   final Function(int) onTap; // Add this callback
 
   const BottomNavigation({
-    super.key,
+    Key? key,
     required this.currentIndex,
     required this.onTap, // Require the callback
-  });
+  }) : super(key: key);
 
 
   static void navigateTo(int index, BuildContext context){
@@ -16,10 +16,10 @@ class BottomNavigation extends StatelessWidget {
 
     switch (index) {
       case 0:
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(context, '/dashboard');
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, '/alldevice');
+        Navigator.pushReplacementNamed(context, '/service');
         break;
       case 2:
         Navigator.pushReplacementNamed(context, '/history');
@@ -46,10 +46,10 @@ class BottomNavigation extends StatelessWidget {
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.devices),
+          icon: Icon(Icons.build_circle),
           label: 'Service',
         ),
-
+       
         BottomNavigationBarItem(
           icon: Icon(Icons.history),
           label: 'History',

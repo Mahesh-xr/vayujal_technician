@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vayujal_technician/DatabaseActions/adminAction.dart';
+import 'package:vayujal_technician/models/technicaian_profile.dart';
+import 'package:vayujal_technician/navigation/bottom_navigation.dart';
 import 'package:vayujal_technician/navigation/custom_app_bar.dart';
 import 'package:vayujal_technician/pages/service_details_page.dart';
 
-
 class AllServiceRequestsPage extends StatefulWidget {
-  const AllServiceRequestsPage({super.key});
+  // Add optional parameter for initial filter
+  final String? initialFilter;
+  
+  const AllServiceRequestsPage({super.key, this.initialFilter});
 
   @override
   State<AllServiceRequestsPage> createState() => _AllServiceRequestsPageState();
@@ -17,22 +23,79 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
   bool _isLoading = true;
   String _selectedFilter = 'All';
   final TextEditingController _searchController = TextEditingController();
+  
+  // Add this to store current technician's employee ID
+  String? _currentEmployeeId;
 
   final List<String> _filterOptions = ['All', 'In Progress', 'Delayed', 'Completed'];
 
   @override
   void initState() {
     super.initState();
-    _loadServiceRequests();
+    // Set initial filter if provided
+    if (widget.initialFilter != null) {
+      _selectedFilter = widget.initialFilter!;
+    }
+    _loadTechnicianAndServiceRequests();
   }
 
-  Future<void> _loadServiceRequests() async {
+  // New method to load technician profile and then service requests
+  Future<void> _loadTechnicianAndServiceRequests() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      List<Map<String, dynamic>> serviceRequests = await AdminAction.getAllServiceRequests();
+      // Get current user from Firebase Auth
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('No user is currently logged in');
+      }
+
+      // Fetch technician profile from Firestore
+      DocumentSnapshot technicianDoc = await FirebaseFirestore.instance
+          .collection('technicians')
+          .doc(currentUser.uid)
+          .get();
+
+      if (technicianDoc.exists) {
+        TechnicianProfile technicianProfile = TechnicianProfile.fromFirestore(technicianDoc);
+        _currentEmployeeId = technicianProfile.employeeId;
+        
+        // Load service requests with initial filter
+        await _loadServiceRequestsWithFilter();
+      } else {
+        throw Exception('Technician profile not found');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading technician profile: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // New method to load service requests with the current filter
+  Future<void> _loadServiceRequestsWithFilter() async {
+    if (_currentEmployeeId == null) return;
+
+    try {
+      List<Map<String, dynamic>> serviceRequests;
+      
+      if (_selectedFilter == 'All') {
+        serviceRequests = await AdminAction.getEmployeeServiceRequests(_currentEmployeeId!);
+      } else {
+        String statusFilter = _getStatusFromFilter(_selectedFilter);
+        serviceRequests = await AdminAction.getEmployeeServiceRequestsByStatus(_currentEmployeeId!, statusFilter);
+      }
+      
       setState(() {
         _allServiceRequests = serviceRequests;
         _filteredServiceRequests = serviceRequests;
@@ -42,40 +105,93 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading service requests: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading service requests: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  void _filterServiceRequests(String filter) {
+  Future<void> _loadServiceRequests() async {
+    if (_currentEmployeeId == null) return;
+
+    try {
+      List<Map<String, dynamic>> serviceRequests = await AdminAction.getEmployeeServiceRequests(_currentEmployeeId!);
+      setState(() {
+        _allServiceRequests = serviceRequests;
+        _filteredServiceRequests = serviceRequests;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading service requests: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _filterServiceRequests(String filter) async {
+    if (_currentEmployeeId == null) return;
+
     setState(() {
       _selectedFilter = filter;
+      _isLoading = true;
+    });
+
+    try {
+      List<Map<String, dynamic>> serviceRequests;
       
       if (filter == 'All') {
-        _filteredServiceRequests = _allServiceRequests;
+        serviceRequests = await AdminAction.getEmployeeServiceRequests(_currentEmployeeId!);
       } else {
         String statusFilter = _getStatusFromFilter(filter);
-        _filteredServiceRequests = _allServiceRequests.where((sr) {
-          String status = sr['serviceDetails']?['status'] ?? sr['status'] ?? 'pending';
-          return status.toLowerCase() == statusFilter.toLowerCase();
-        }).toList();
+        print('Filtering by status: $statusFilter'); // Debug print
+        serviceRequests = await AdminAction.getEmployeeServiceRequestsByStatus(_currentEmployeeId!, statusFilter);
+        print('Found ${serviceRequests.length} requests with status: $statusFilter'); // Debug print
       }
+      
+      setState(() {
+        _allServiceRequests = serviceRequests;
+        _filteredServiceRequests = serviceRequests;
+        _isLoading = false;
+      });
       
       // Apply search filter if there's a search query
       if (_searchController.text.isNotEmpty) {
         _searchServiceRequests(_searchController.text);
       }
-    });
+    } catch (e) {
+      print('Error in _filterServiceRequests: $e'); // Debug print
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error filtering service requests: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
+  // Fixed status mapping to match database values
   String _getStatusFromFilter(String filter) {
     switch (filter) {
-      case 'in_progress':
-        return 'In Progress';
+      case 'In Progress':
+        return 'pending'; // Changed from 'pending' to 'in_progress'
       case 'Delayed':
         return 'delayed';
       case 'Completed':
@@ -88,9 +204,9 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
   void _searchServiceRequests(String query) {
     setState(() {
       if (query.isEmpty) {
-        _filterServiceRequests(_selectedFilter);
+        _filteredServiceRequests = _allServiceRequests;
       } else {
-        _filteredServiceRequests = _filteredServiceRequests.where((sr) {
+        _filteredServiceRequests = _allServiceRequests.where((sr) {
           String srId = sr['serviceDetails']?['srId'] ?? sr['srId'] ?? '';
           String customerName = sr['customerDetails']?['name'] ?? '';
           String model = sr['equipmentDetails']?['model'] ?? '';
@@ -113,23 +229,25 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
       case 'delayed':
         return 'Delayed';
       case 'pending':
-        
       default:
         return 'Pending';
     }
   }
 
+  // Fixed status color logic to handle both formats
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'completed':
         return Colors.green;
       case 'in progress':
+      case 'in_progress':
         return Colors.blue;
       case 'delayed':
         return Colors.red;
       case 'pending':
-      default:
         return Colors.orange;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -160,7 +278,7 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: CustomAppBar(
-        title: 'Services',
+        title: 'My Service Requests',
       ),
       body: Column(
         children: [
@@ -205,7 +323,7 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
             child: TextField(
               controller: _searchController,
               decoration: const InputDecoration(
-                hintText: 'Search service requests...',
+                hintText: 'Search your service requests...',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -217,7 +335,7 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
           // Service Requests List
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(child: CircularProgressIndicator())
                 : _filteredServiceRequests.isEmpty
                     ? Center(
                         child: Column(
@@ -379,6 +497,10 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
           ),
         ],
       ),
+        bottomNavigationBar: BottomNavigation(
+        currentIndex: widget.initialFilter == 'Completed' ? 2 : 1,
+        onTap:(currentIndex) => BottomNavigation.navigateTo(currentIndex, context) ,
+),
     );
   }
 }
