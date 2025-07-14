@@ -277,8 +277,12 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: CustomAppBar(
-        title: 'My Service Requests',
+      appBar: AppBar(
+        title: Text('My Service Requests'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        centerTitle: true,
       ),
       body: Column(
         children: [
@@ -374,7 +378,7 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
                           itemBuilder: (context, index) {
                             Map<String, dynamic> serviceRequest = _filteredServiceRequests[index];
                             
-                            String srId = serviceRequest['serviceDetails']?['srId'] ?? serviceRequest['srId'] ?? 'N/A';
+                            String srId = serviceRequest['srId'] ?? 'N/A';
                             String customerName = serviceRequest['customerDetails']?['name'] ?? 'Unknown Customer';
                             String model = serviceRequest['equipmentDetails']?['model'] ?? 'Unknown Model';
                             String requestType = serviceRequest['serviceDetails']?['requestType'] ?? 'General Service';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vayujal_technician/DatabaseActions/adminAction.dart';
 import 'package:vayujal_technician/screens/service_hostory_screen.dart';
+import 'package:vayujal_technician/screens/startservice.dart';
 import 'package:vayujal_technician/utils/submit_botton.dart';
 
 
@@ -124,6 +125,79 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     );
   }
 
+
+  // Add this method to your ServiceDetailsPage class
+  Widget _buildStartServiceButton() {
+    // Extract the complaint/description for the service
+    Map<String, dynamic> serviceDetails = _serviceRequest?['serviceDetails'] ?? {};
+    String customerComplaint = serviceDetails['description'] ?? 
+                              serviceDetails['comments'] ?? 
+                              'Service request';
+    
+    String srNumber = _serviceRequest?['serviceDetails']?['srId'] ?? 
+                     _serviceRequest?['srId'] ?? 
+                     widget.serviceRequestId;
+    
+    return Card(
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Service Action',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StartServiceScreen(
+                        awgSerialNumber: _serviceRequest?['deviceId'] ?? '',
+                        srNumber: srNumber,
+                        customerComplaint: customerComplaint,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.build, color: Colors.white),
+                label: const Text(
+                  'Start Service',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEquipmentDetails() {
     Map<String, dynamic> equipmentDetails = _serviceRequest?['equipmentDetails'] ?? {};
     
@@ -205,43 +279,46 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       return _buildDetailCard(
         
         'Complaint Details',
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (description.isNotEmpty) ...[
-              const Text(
-                'Summary',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+        SizedBox(
+          width: 440,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (description.isNotEmpty) ...[
+                const Text(
+                  'Summary',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: const TextStyle(
-                  color: Colors.black87,
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
+              ],
+              if (comments.isNotEmpty && comments != description) ...[
+                const Text(
+                  'Details',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  comments,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
             ],
-            if (comments.isNotEmpty && comments != description) ...[
-              const Text(
-                'Details',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                comments,
-                style: const TextStyle(
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       );
     }
@@ -352,6 +429,10 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
 
                         // Complaint Details (conditional)
                         _buildComplaintDetails(),
+                        _buildStartServiceButton() 
+
+
+
                       ],
                     ),
                   ),
@@ -359,3 +440,4 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     );
   }
 }
+

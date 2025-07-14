@@ -118,7 +118,7 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> with Single
           final service = serviceHistory[index];
           return ServiceHistoryCard(
             service: service,
-            onTap: () => _showServiceDetails(service),
+            onTap: () => _showServiceDetails(service.srNumber),
           );
         },
       ),
@@ -211,11 +211,11 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> with Single
     );
   }
 
-  void _showServiceDetails(ServiceHistoryItem service) {
+  void _showServiceDetails(String srNumber) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ServiceDetailScreen(service: service),
+        builder: (context) => ServiceDetailScreen(srNumber: srNumber),
       ),
     );
   }

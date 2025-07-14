@@ -412,7 +412,7 @@ class _AdminProfileSetupPageState extends State<AdminProfileSetupPage> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text('Admin Profile'),
+        title: Text('Technician Profile'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,

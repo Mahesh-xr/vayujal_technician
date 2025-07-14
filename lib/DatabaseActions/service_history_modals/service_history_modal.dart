@@ -4,6 +4,7 @@ class ServiceHistoryItem {
   final String srNumber;
   final String serviceType;
   final String technician;
+  final String empId;
   final DateTime serviceDate;
   final String? issues;
   final String? resolution;
@@ -13,6 +14,7 @@ class ServiceHistoryItem {
   final DateTime? nextServiceDate;
 
   ServiceHistoryItem({
+    required this.empId,
     required this.srNumber,
     required this.serviceType,
     required this.technician,
@@ -33,6 +35,7 @@ class ServiceHistoryItem {
       technician: data['technician'] ?? 'Name',
       serviceDate: (data['serviceDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       issues: data['issues'],
+      empId: data['empId'] ?? 'Unknown Employee ID',
       // resolution: data['resolutions'],
       // partsReplaced: data['partsReplaced'] != null 
       //     ? List<String>.from(data['partsReplaced']) 
