@@ -25,6 +25,7 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
   void initState() {
     super.initState();
     _loadServiceData();
+    print("navigatiob to resolution sucessfull");
   }
 
   Future<void> _loadServiceData() async {

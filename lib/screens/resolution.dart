@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:vayujal_technician/screens/dbforresolution.dart';
 import 'package:vayujal_technician/screens/service_acknowlwdgement_screen.dart.dart';
+import 'package:video_player/video_player.dart';
 
 class ResolutionPage extends StatefulWidget {
   final String srNumber;
@@ -17,17 +18,23 @@ class ResolutionPage extends StatefulWidget {
 class _ResolutionPageState extends State<ResolutionPage> {
   final ResolutionService _resolutionService = ResolutionService();
   final _formKey = GlobalKey<FormState>();
+  final ImagePicker _picker = ImagePicker();
   
   // Controllers
-  final TextEditingController _serialNumberController = TextEditingController();
   final TextEditingController _issueTypeController = TextEditingController();
   final TextEditingController _solutionController = TextEditingController();
   final TextEditingController _customSuggestionsController = TextEditingController();
+  final TextEditingController _issueOthersController = TextEditingController();
+  final TextEditingController _partsOthersController = TextEditingController();
+
+  VideoPlayerController? _videoPlayerController;
+  bool _isVideoPlaying = false;
   
   // Form data
-  String _selectedIssue = '';
-  String _selectedParts = '';
-  File? _resolutionImage;
+  List<String> _selectedIssues = [];
+  List<String> _selectedParts = [];
+  List<File> _resolutionImages = [];
+  File? _resolutionVideo;
   DateTime _nextServiceDate = DateTime.now().add(Duration(days: 30));
   
   // Suggestions checkboxes
@@ -39,25 +46,36 @@ class _ResolutionPageState extends State<ResolutionPage> {
   };
   
   // Status
-  String _selectedStatus = 'pending';
+  String _selectedStatus = 'completed';
   bool _isLoading = false;
 
   // Issue options
   final List<String> _issueOptions = [
-    'Adapter',
-    'OLR',
-    'Contactor',
-    'LP/HP switch',
-    'LED',
+    'Adapter', 'OLR', 'Contactor', 'LP/HP switch', 'Sensor', 'LED', 'Switch', 'Controllers', 
+    'Capacitor', 'Fan', 'Air filter', 'Gas leakage', 'Compressor', 'Icing', 'Pump', 'Filters', 
+    'Plumbing', 'Rusting', 'Cracks', 'Buckling', 'Bending', 'Environmental', 'None', 'Others'
   ];
 
-  // Parts options
-  final List<String> _partsOptions = [
-    'ROCKER SWITCH',
-    'RED DPST',
-    'BLUE DPST',
-    'PUSH LOCK BUTTON',
-  ];
+  // Updated Parts options with hierarchical structure as requested
+  final Map<String, List<String>> _partsOptions = {
+    'ROCKER SWITCH': ['RED DPST', 'BLUE DPST', 'PUSH LOCK BUTTON'],
+    'ADAPTER': ['1.5A ADAPTER', '2.5A ADAPTER', 'UVI CHOKE 230VAC'],
+    'RELAY AND BASE': [],
+    'WATER PUMP': [],
+    'CAPACITOR': [],
+    'OLR': [],
+    'CONTACTOR': [],
+    'TIMER': [],
+    'FILTERS': ['SEDIMENT', 'PRE CARBON', 'POST CARBON', 'MINERALS', 'UF MEMBRANE', 'UV', 'OZONE-GENERATOR'],
+    'FAN': [],
+    'REFRIGERANT': [],
+    'WHEELS': [],
+    'MCB': [],
+    'PLUG-IN 3 TOP': [],
+    'PRESSURE SWITCH': [],
+    'CONTROLLERS': ['SZ 2911', 'SZ 7510T', 'SZ 7524T'],
+    'Others': [],
+  };
 
   @override
   void initState() {
@@ -70,7 +88,6 @@ class _ResolutionPageState extends State<ResolutionPage> {
     try {
       final data = await _resolutionService.getServiceRequestData(widget.srNumber);
       if (data != null) {
-        // You can pre-fill any existing data here if needed
         setState(() {
           // Pre-fill any existing resolution data
         });
@@ -82,23 +99,159 @@ class _ResolutionPageState extends State<ResolutionPage> {
     }
   }
 
-  // Pick image from camera or gallery
-  Future<void> _pickImage(ImageSource source) async {
+  // Pick multiple images (up to 5) - FIXED VERSION
+  Future<void> _pickImages(ImageSource source) async {
     try {
-      final image = await _resolutionService.pickImage(source);
-      if (image != null) {
-        setState(() {
-          _resolutionImage = image;
-        });
+      if (source == ImageSource.camera) {
+        final XFile? image = await _picker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 1920,
+          maxHeight: 1080,
+          imageQuality: 85,
+        );
+        if (image != null && _resolutionImages.length < 5) {
+          setState(() {
+            _resolutionImages.add(File(image.path));
+          });
+        }
+      } else {
+        // Fixed: Using pickImage instead of pickMultipleImages
+        final XFile? image = await _picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1920,
+          maxHeight: 1080,
+          imageQuality: 85,
+        );
+        if (image != null && _resolutionImages.length < 5) {
+          setState(() {
+            _resolutionImages.add(File(image.path));
+          });
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
+        SnackBar(content: Text('Error picking images: $e')),
       );
     }
   }
 
-  // Show image picker dialog
+  // Alternative method for picking multiple images from gallery
+  Future<void> _pickMultipleImagesFromGallery() async {
+    try {
+      // Pick images one by one until limit is reached
+      while (_resolutionImages.length < 5) {
+        final XFile? image = await _picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1920,
+          maxHeight: 1080,
+          imageQuality: 85,
+        );
+        
+        if (image != null) {
+          setState(() {
+            _resolutionImages.add(File(image.path));
+          });
+          
+          // Ask user if they want to add more images
+          if (_resolutionImages.length < 5) {
+            bool? addMore = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text('Add More Images'),
+                content: Text('You have added ${_resolutionImages.length} image(s). Do you want to add more? (Max: 5)'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('No'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text('Yes'),
+                  ),
+                ],
+              ),
+            );
+            
+            if (addMore != true) break;
+          }
+        } else {
+          break; // User cancelled
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking images: $e')),
+      );
+    }
+  }
+
+  // Pick video (10 seconds max)
+Future<void> _pickVideo() async {
+  try {
+    final XFile? video = await _picker.pickVideo(
+      source: ImageSource.camera,
+      maxDuration: Duration(seconds: 10),
+    );
+    if (video != null) {
+      _initializeVideoPlayer(File(video.path));
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error picking video: $e')),
+    );
+  }
+}
+
+Future<void> _pickVideoFromGallery() async {
+  try {
+    final XFile? video = await _picker.pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: Duration(seconds: 10),
+    );
+    if (video != null) {
+      _initializeVideoPlayer(File(video.path));
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error picking video: $e')),
+    );
+  }
+}
+
+Future<void> _initializeVideoPlayer(File videoFile) async {
+  // Dispose any existing controller
+  if (_videoPlayerController != null) {
+    await _videoPlayerController!.dispose();
+  }
+
+  setState(() {
+    _resolutionVideo = videoFile;
+    _videoPlayerController = VideoPlayerController.file(videoFile)
+      ..initialize().then((_) {
+        // Ensure the first frame is shown after the video is initialized
+        setState(() {});
+      });
+  });
+}
+  // Remove image
+  void _removeImage(int index) {
+    setState(() {
+      _resolutionImages.removeAt(index);
+    });
+  }
+
+  // Remove video
+void _removeVideo() async {
+  if (_videoPlayerController != null) {
+    await _videoPlayerController!.dispose();
+  }
+  setState(() {
+    _resolutionVideo = null;
+    _videoPlayerController = null;
+    _isVideoPlaying = false;
+  });
+}
+  // Show image picker dialog - UPDATED
   void _showImagePickerDialog() {
     showDialog(
       context: context,
@@ -112,16 +265,189 @@ class _ResolutionPageState extends State<ResolutionPage> {
               title: Text('Camera'),
               onTap: () {
                 Navigator.pop(context);
-                _pickImage(ImageSource.camera);
+                _pickImages(ImageSource.camera);
               },
             ),
             ListTile(
               leading: Icon(Icons.photo_library),
-              title: Text('Gallery'),
+              title: Text('Gallery (Single)'),
               onTap: () {
                 Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
+                _pickImages(ImageSource.gallery);
               },
+            ),
+            ListTile(
+              leading: Icon(Icons.photo_library_outlined),
+              title: Text('Gallery (Multiple)'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickMultipleImagesFromGallery();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Show video picker dialog
+  void _showVideoPickerDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Select Video Source'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.videocam),
+              title: Text('Camera (10 sec max)'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickVideo();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.video_library),
+              title: Text('Gallery (10 sec max)'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickVideoFromGallery();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Show issue selection dialog with multiple selection
+  void _showIssueSelectionDialog() {
+    List<String> tempSelectedIssues = List.from(_selectedIssues);
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Select Issues (Multiple Selection)'),
+          content: Container(
+            width: double.maxFinite,
+            height: 400,
+            child: ListView(
+              children: _issueOptions.map((issue) => CheckboxListTile(
+                title: Text(issue),
+                value: tempSelectedIssues.contains(issue),
+                onChanged: (value) {
+                  setDialogState(() {
+                    if (value == true) {
+                      tempSelectedIssues.add(issue);
+                    } else {
+                      tempSelectedIssues.remove(issue);
+                    }
+                  });
+                },
+              )).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _selectedIssues = tempSelectedIssues;
+                });
+                Navigator.pop(context);
+              },
+              child: Text('Done'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Show parts selection dialog with hierarchical structure and multiple selection
+  void _showPartsSelectionDialog() {
+    List<String> tempSelectedParts = List.from(_selectedParts);
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Select Parts (Multiple Selection)'),
+          content: Container(
+            width: double.maxFinite,
+            height: 500,
+            child: ListView(
+              children: _partsOptions.entries.map((entry) {
+                final mainItem = entry.key;
+                final subItems = entry.value;
+                
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Main item
+                    CheckboxListTile(
+                      title: Text(
+                        mainItem, 
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[800],
+                        ),
+                      ),
+                      value: tempSelectedParts.contains(mainItem),
+                      onChanged: (value) {
+                        setDialogState(() {
+                          if (value == true) {
+                            tempSelectedParts.add(mainItem);
+                          } else {
+                            tempSelectedParts.remove(mainItem);
+                          }
+                        });
+                      },
+                    ),
+                    // Sub items with indentation
+                    ...subItems.map((subItem) => Padding(
+                      padding: EdgeInsets.only(left: 32),
+                      child: CheckboxListTile(
+                        title: Text(
+                          subItem,
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        value: tempSelectedParts.contains(subItem),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            if (value == true) {
+                              tempSelectedParts.add(subItem);
+                            } else {
+                              tempSelectedParts.remove(subItem);
+                            }
+                          });
+                        },
+                      ),
+                    )),
+                    if (subItems.isNotEmpty) Divider(),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _selectedParts = tempSelectedParts;
+                });
+                Navigator.pop(context);
+              },
+              child: Text('Done'),
             ),
           ],
         ),
@@ -144,15 +470,59 @@ class _ResolutionPageState extends State<ResolutionPage> {
     }
   }
 
+  // Get suggestion text
+  String _getSuggestionText(String key) {
+    switch (key) {
+      case 'keepAirFilterClean':
+        return 'Keep air filter clean';
+      case 'supplyStableElectricity':
+        return 'Supply stable electricity';
+      case 'keepAwayFromSmells':
+        return 'Keep away from smells';
+      case 'protectFromSunAndRain':
+        return 'Protect from sun and rain';
+      default:
+        return key;
+    }
+  }
+
+  // Build section widget
+  Widget _buildSection({required String title, required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black
+            ),
+          ),
+          SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+
   // Submit resolution
   Future<void> _submitResolution() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    if (_selectedIssue.isEmpty) {
+    if (_selectedIssues.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select an issue')),
+        SnackBar(content: Text('Please select at least one issue')),
       );
       return;
     }
@@ -164,31 +534,32 @@ class _ResolutionPageState extends State<ResolutionPage> {
     try {
       await _resolutionService.completeResolution(
         srNumber: widget.srNumber,
-        serialNumber: _serialNumberController.text,
-        issueIdentification: _selectedIssue,
+        issueIdentification: _selectedIssues.join(', '),
         issueType: _issueTypeController.text,
         solutionProvided: _solutionController.text,
-        partsReplaced: _selectedParts,
-        resolutionImage: _resolutionImage,
+        partsReplaced: _selectedParts.join(', '),
+        resolutionImages: _resolutionImages,
+        resolutionVideo: _resolutionVideo,
         nextServiceDate: _nextServiceDate,
         suggestions: _suggestions,
         customSuggestions: _customSuggestionsController.text,
         status: _selectedStatus,
+        issueOthers: _issueOthersController.text,
+        partsOthers: _partsOthersController.text, resolutionImage: null, serialNumber: '',
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Resolution submitted successfully!')),
       );
 
-      // Navigate back or to next screen
       Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (context) => ServiceAcknowledgmentScreen(
-      srNumber:widget.srNumber ,
-    ),
-  ),
-);
+        context,
+        MaterialPageRoute(
+          builder: (context) => ServiceAcknowledgmentScreen(
+            srNumber: widget.srNumber,
+          ),
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error submitting resolution: $e')),
@@ -208,7 +579,6 @@ class _ResolutionPageState extends State<ResolutionPage> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
-        
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
@@ -227,7 +597,7 @@ class _ResolutionPageState extends State<ResolutionPage> {
                         children: [
                           Text('SR Number: ${widget.srNumber}', style: TextStyle(fontWeight: FontWeight.w500)),
                           SizedBox(height: 16),
-                          
+                         
                         ],
                       ),
                     ),
@@ -240,30 +610,58 @@ class _ResolutionPageState extends State<ResolutionPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Select Identified issues'),
+                          Text('Select Identified Issues (Multiple Selection)'),
                           SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            value: _selectedIssue.isEmpty ? null : _selectedIssue,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              hintText: 'Select',
+                          InkWell(
+                            onTap: _showIssueSelectionDialog,
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _selectedIssues.isEmpty 
+                                        ? 'Tap to select issues'
+                                        : 'Selected Issues (${_selectedIssues.length}):',
+                                    style: TextStyle(
+                                      color: _selectedIssues.isEmpty ? Colors.grey : Colors.blue[800],
+                                      fontWeight: _selectedIssues.isEmpty ? FontWeight.normal : FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (_selectedIssues.isNotEmpty) ...[
+                                    SizedBox(height: 8),
+                                    Text(
+                                      _selectedIssues.join(', '),
+                                      style: TextStyle(color: Colors.black87),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                            items: _issueOptions.map((issue) => DropdownMenuItem(
-                              value: issue,
-                              child: Text(issue),
-                            )).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedIssue = value ?? '';
-                              });
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please select an issue';
-                              }
-                              return null;
-                            },
                           ),
+                          if (_selectedIssues.contains('Others')) ...[
+                            SizedBox(height: 16),
+                            Text('Specify Others'),
+                            SizedBox(height: 8),
+                            TextFormField(
+                              controller: _issueOthersController,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                hintText: 'Enter other issues',
+                              ),
+                              validator: (value) {
+                                if (_selectedIssues.contains('Others') && (value == null || value.isEmpty)) {
+                                  return 'Please specify other issues';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
                           SizedBox(height: 16),
                           Text('Type of identified issue'),
                           SizedBox(height: 8),
@@ -303,35 +701,72 @@ class _ResolutionPageState extends State<ResolutionPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Enter parts replaced details'),
+                          Text('Select Parts Replaced (Multiple Selection)'),
                           SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            value: _selectedParts.isEmpty ? null : _selectedParts,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              hintText: 'Select',
+                          InkWell(
+                            onTap: _showPartsSelectionDialog,
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _selectedParts.isEmpty 
+                                        ? 'Tap to select parts'
+                                        : 'Selected Parts (${_selectedParts.length}):',
+                                    style: TextStyle(
+                                      color: _selectedParts.isEmpty ? Colors.grey : Colors.blue[800],
+                                      fontWeight: _selectedParts.isEmpty ? FontWeight.normal : FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (_selectedParts.isNotEmpty) ...[
+                                    SizedBox(height: 8),
+                                    Text(
+                                      _selectedParts.join(', '),
+                                      style: TextStyle(color: Colors.black87),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                            items: _partsOptions.map((part) => DropdownMenuItem(
-                              value: part,
-                              child: Text(part),
-                            )).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedParts = value ?? '';
-                              });
-                            },
                           ),
+                          if (_selectedParts.contains('Others')) ...[
+                            SizedBox(height: 16),
+                            Text('Specify Others'),
+                            SizedBox(height: 8),
+                            TextFormField(
+                              controller: _partsOthersController,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                hintText: 'Enter other parts',
+                              ),
+                              validator: (value) {
+                                if (_selectedParts.contains('Others') && (value == null || value.isEmpty)) {
+                                  return 'Please specify other parts';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
                         ],
                       ),
                     ),
                     
                     SizedBox(height: 20),
                     
-                    // Upload Resolution Photos
+                    // Upload Resolution Photos and Video
                     _buildSection(
-                      title: 'Upload Post Resolution Photos',
+                      title: 'Upload Post Resolution Photos & Video',
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Text('Photos (up to 5)'),
+                          SizedBox(height: 8),
                           Container(
                             width: double.infinity,
                             height: 120,
@@ -339,13 +774,47 @@ class _ResolutionPageState extends State<ResolutionPage> {
                               border: Border.all(color: Colors.grey.shade300),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: _resolutionImage != null
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(
-                                      _resolutionImage!,
-                                      fit: BoxFit.cover,
-                                    ),
+                            child: _resolutionImages.isNotEmpty
+                                ? ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: _resolutionImages.length,
+                                    itemBuilder: (context, index) {
+                                      return Container(
+                                        width: 100,
+                                        margin: EdgeInsets.all(8),
+                                        child: Stack(
+                                          children: [
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: Image.file(
+                                                _resolutionImages[index],
+                                                fit: BoxFit.cover,
+                                                width: 100,
+                                                height: 100,
+                                              ),
+                                            ),
+                                            Positioned(
+                                              right: 0,
+                                              top: 0,
+                                              child: GestureDetector(
+                                                onTap: () => _removeImage(index),
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.close,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
                                   )
                                 : Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -361,18 +830,132 @@ class _ResolutionPageState extends State<ResolutionPage> {
                             children: [
                               Expanded(
                                 child: OutlinedButton(
-                                  onPressed: _showImagePickerDialog,
-                                  child: Text('Upload Photos'),
+                                  onPressed: _resolutionImages.length < 5 ? _showImagePickerDialog : null,
+                                  child: Text('Upload Photos (${_resolutionImages.length}/5)'),
                                 ),
                               ),
                               SizedBox(width: 16),
                               Expanded(
                                 child: OutlinedButton(
-                                  onPressed: () => _pickImage(ImageSource.camera),
+                                  onPressed: _resolutionImages.length < 5 ? () => _pickImages(ImageSource.camera) : null,
                                   child: Text('Take Photos'),
                                 ),
                               ),
                             ],
+                          ),
+                          SizedBox(height: 20),
+                          Text('Video (10 seconds max)'),
+                          SizedBox(height: 8),
+                          Container(
+  width: double.infinity,
+  height: 200, // Increased height for better video viewing
+  decoration: BoxDecoration(
+    border: Border.all(color: Colors.grey.shade300),
+    borderRadius: BorderRadius.circular(8),
+    color: Colors.black.withOpacity(0.1), // Slight background for better contrast
+  ),
+  child: _resolutionVideo != null
+      ? Stack(
+          children: [
+            // Video Player Preview
+            Center(
+              child: AspectRatio(
+                aspectRatio: _videoPlayerController?.value.aspectRatio ?? 16/9,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: _videoPlayerController != null && 
+                         _videoPlayerController!.value.isInitialized
+                      ? VideoPlayer(_videoPlayerController!)
+                      : Container(
+                          color: Colors.black,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            ),
+
+            // Play/Pause Controls
+            Center(
+              child: IconButton(
+                icon: Icon(
+                  _isVideoPlaying ? Icons.pause : Icons.play_arrow,
+                  size: 50,
+                  color: Colors.white.withOpacity(0.8),
+                ),
+                onPressed: () {
+                  if (_videoPlayerController != null) {
+                    setState(() {
+                      if (_isVideoPlaying) {
+                        _videoPlayerController!.pause();
+                      } else {
+                        _videoPlayerController!.play();
+                      }
+                      _isVideoPlaying = !_isVideoPlaying;
+                    });
+                  }
+                },
+              ),
+            ),
+
+            // Video Duration Indicator
+            if (_videoPlayerController != null &&
+                _videoPlayerController!.value.isInitialized)
+              Positioned(
+                left: 8,
+                right: 8,
+                bottom: 8,
+                child: VideoProgressIndicator(
+                  _videoPlayerController!,
+                  allowScrubbing: true,
+                  colors: VideoProgressColors(
+                    playedColor: Colors.red,
+                    bufferedColor: Colors.grey.shade600,
+                    backgroundColor: Colors.grey.shade800,
+                  ),
+                ),
+              ),
+
+            // Remove Button
+            Positioned(
+              right: 8,
+              top: 8,
+              child: GestureDetector(
+                onTap: _removeVideo,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        )
+      : Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.videocam, size: 40, color: Colors.grey),
+            SizedBox(height: 8),
+            Text('No Video uploaded', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+),
+                          SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: _resolutionVideo == null ? _showVideoPickerDialog : null,
+                              child: Text('Upload Video (10 sec max)'),
+                            ),
                           ),
                         ],
                       ),
@@ -382,7 +965,7 @@ class _ResolutionPageState extends State<ResolutionPage> {
                     
                     // Next Service Date
                     _buildSection(
-                      title: 'Next Service date',
+                      title: 'Next Service Date',
                       child: InkWell(
                         onTap: _selectNextServiceDate,
                         child: Container(
@@ -444,21 +1027,18 @@ class _ResolutionPageState extends State<ResolutionPage> {
                     // Status
                     _buildSection(
                       title: 'Status',
-                      child: Row(
+                      child: Column(
                         children: [
                           Expanded(
                             child: CheckboxListTile(
                               title: Text('Completed'),
                               value: _selectedStatus == 'completed',
                               onChanged: (value) {
-                                if (value == true) {
-                                  setState(() {
-                                    _selectedStatus = 'completed';
-                                  });
-                                }
+                                setState(() {
+                                  _selectedStatus = value! ? 'completed' : 'pending';
+                                });
                               },
                               controlAffinity: ListTileControlAffinity.leading,
-                              contentPadding: EdgeInsets.zero,
                             ),
                           ),
                           Expanded(
@@ -466,29 +1046,23 @@ class _ResolutionPageState extends State<ResolutionPage> {
                               title: Text('Pending'),
                               value: _selectedStatus == 'pending',
                               onChanged: (value) {
-                                if (value == true) {
-                                  setState(() {
-                                    _selectedStatus = 'pending';
-                                  });
-                                }
+                                setState(() {
+                                  _selectedStatus = value! ? 'pending' : 'completed';
+                                });
                               },
                               controlAffinity: ListTileControlAffinity.leading,
-                              contentPadding: EdgeInsets.zero,
                             ),
                           ),
                           Expanded(
                             child: CheckboxListTile(
-                              title: Text('Ongoing'),
-                              value: _selectedStatus == 'ongoing',
+                              title: Text('In Progress'),
+                              value: _selectedStatus == 'in_progress',
                               onChanged: (value) {
-                                if (value == true) {
-                                  setState(() {
-                                    _selectedStatus = 'ongoing';
-                                  });
-                                }
+                                setState(() {
+                                  _selectedStatus = value! ? 'in_progress' : 'completed';
+                                });
                               },
                               controlAffinity: ListTileControlAffinity.leading,
-                              contentPadding: EdgeInsets.zero,
                             ),
                           ),
                         ],
@@ -503,69 +1077,25 @@ class _ResolutionPageState extends State<ResolutionPage> {
                       child: ElevatedButton(
                         onPressed: _submitResolution,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                          backgroundColor: Colors.black
+                        ),
+                        child: Text(
+                          'SUBMIT RESOLUTION',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
-                        child: Text('Continue to Customer Acknowledgement'),
                       ),
                     ),
+                    
+                    SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
     );
-  }
-
-  Widget _buildSection({required String title, required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
-  }
-
-  String _getSuggestionText(String key) {
-    switch (key) {
-      case 'keepAirFilterClean':
-        return 'Keep Air Filter Clean';
-      case 'supplyStableElectricity':
-        return 'Supply stable electricity';
-      case 'keepAwayFromSmells':
-        return 'Keep the machine away from smelly areas';
-      case 'protectFromSunAndRain':
-        return 'Protect from direct sunlight & rain water ingression.';
-      default:
-        return key;
-    }
-  }
-
-  @override
-  void dispose() {
-    _serialNumberController.dispose();
-    _issueTypeController.dispose();
-    _solutionController.dispose();
-    _customSuggestionsController.dispose();
-    super.dispose();
   }
 }

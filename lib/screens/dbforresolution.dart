@@ -97,7 +97,7 @@ class ResolutionService {
     required DateTime nextServiceDate,
     required Map<String, bool> suggestions,
     required String customSuggestions,
-    required String status,
+    required String status, required List<File> resolutionImages, File? resolutionVideo, required String issueOthers, required String partsOthers,
   }) async {
     try {
       String resolutionImageUrl = '';

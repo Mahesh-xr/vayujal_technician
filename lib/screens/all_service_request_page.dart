@@ -4,8 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vayujal_technician/DatabaseActions/adminAction.dart';
 import 'package:vayujal_technician/models/technicaian_profile.dart';
 import 'package:vayujal_technician/navigation/bottom_navigation.dart';
-import 'package:vayujal_technician/navigation/custom_app_bar.dart';
 import 'package:vayujal_technician/pages/service_details_page.dart';
+import 'notification.dart';
 
 class AllServiceRequestsPage extends StatefulWidget {
   // Add optional parameter for initial filter
@@ -27,7 +27,8 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
   // Add this to store current technician's employee ID
   String? _currentEmployeeId;
 
-  final List<String> _filterOptions = ['All', 'In Progress', 'Delayed', 'Completed'];
+  // Updated filter options to include all statuses
+  final List<String> _filterOptions = ['All', 'Pending', 'In Progress', 'Delayed', 'Completed'];
 
   @override
   void initState() {
@@ -187,11 +188,13 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
     }
   }
 
-  // Fixed status mapping to match database values
+  // Updated status mapping to match database values
   String _getStatusFromFilter(String filter) {
     switch (filter) {
+      case 'Pending':
+        return 'pending';
       case 'In Progress':
-        return 'pending'; // Changed from 'pending' to 'in_progress'
+        return 'in_progress';
       case 'Delayed':
         return 'delayed';
       case 'Completed':
@@ -220,7 +223,7 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
   }
 
   String _getDisplayStatus(Map<String, dynamic> serviceRequest) {
-    String status = serviceRequest['serviceDetails']?['status'] ?? serviceRequest['status'] ?? 'pending';
+    String status = serviceRequest['status'] ?? serviceRequest['status'] ?? 'pending';
     switch (status.toLowerCase()) {
       case 'in_progress':
         return 'In Progress';
@@ -239,7 +242,6 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
     switch (status.toLowerCase()) {
       case 'completed':
         return Colors.green;
-      case 'in progress':
       case 'in_progress':
         return Colors.blue;
       case 'delayed':
@@ -265,6 +267,95 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
     } catch (e) {
       return 'N/A';
     }
+  }
+
+  // Method to manually check expired requests
+  Future<void> _checkExpiredRequests() async {
+    if (_currentEmployeeId == null) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text("Checking expired requests..."),
+            ],
+          ),
+        );
+      },
+    );
+
+    try {
+      // Check and update delayed service requests
+      await NotificationService.checkAndUpdateDelayedServiceRequests(_currentEmployeeId!);
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+      
+      // Refresh the current view
+      await _loadServiceRequestsWithFilter();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Expired requests checked successfully'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+    } catch (e) {
+      // Close loading dialog
+      Navigator.of(context).pop();
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error checking expired requests: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Method to show confirmation dialog before checking expired requests
+  Future<void> _showCheckExpiredDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Check Expired Requests'),
+          content: const Text(
+            'This will check all your pending service requests for expired deadlines and update their status to "Delayed" if overdue. Admin will be notified about delayed requests.\n\nDo you want to continue?'
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Check Now'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _checkExpiredRequests();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -370,7 +461,7 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
                         ),
                       )
                     : RefreshIndicator(
-                        onRefresh: _loadServiceRequests,
+                        onRefresh: _loadServiceRequestsWithFilter,
                         child: ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.all(16),
@@ -501,10 +592,18 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
           ),
         ],
       ),
-        bottomNavigationBar: BottomNavigation(
+      // Add Floating Action Button
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCheckExpiredDialog,
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.access_time),
+        label: const Text('Check Expired'),
+      ),
+      bottomNavigationBar: BottomNavigation(
         currentIndex: widget.initialFilter == 'Completed' ? 2 : 1,
         onTap:(currentIndex) => BottomNavigation.navigateTo(currentIndex, context) ,
-),
+      ),
     );
   }
 }
