@@ -4,13 +4,11 @@ import 'package:vayujal_technician/firebase_options.dart';
 import 'package:vayujal_technician/screens/all_service_request_page.dart';
 import 'package:vayujal_technician/screens/dashboard_screen.dart';
 import 'package:vayujal_technician/screens/login_screen.dart';
-import 'screens/auth_wrapper.dart';
 import 'utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Prevent [core/duplicate-app] error
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -62,7 +60,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const AuthWrapper(),
+      home: const LoginScreen(),
       routes: {
         '/dashboard': (context) => const DashboardScreen(),
         '/service': (context) => const AllServiceRequestsPage(
