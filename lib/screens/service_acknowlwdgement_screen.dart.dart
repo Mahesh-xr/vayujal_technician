@@ -25,7 +25,7 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
   void initState() {
     super.initState();
     _loadServiceData();
-    print("navigatiob to resolution sucessfull");
+    print("navigation to resolution sucessfull");
   }
 
   Future<void> _loadServiceData() async {
@@ -38,7 +38,7 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
 
       final serviceHistoryDoc = await FirebaseFirestore.instance
           .collection('serviceHistory')
-          .where('serialNumber', isEqualTo: widget.srNumber)
+          .where('srNumber', isEqualTo: widget.srNumber)
           .get();
 
       if (serviceRequestDoc.docs.isNotEmpty && serviceHistoryDoc.docs.isNotEmpty) {

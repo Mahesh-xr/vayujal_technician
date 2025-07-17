@@ -4,8 +4,23 @@ import 'package:vayujal_technician/functions/firebase_profile_action.dart';
 import 'package:vayujal_technician/screens/dashboard_screen.dart';
 import 'profile_setup_screen.dart';
 import 'package:vayujal_technician/screens/login_screen.dart';
-class AuthWrapper extends StatelessWidget {
+
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  // ✅ FIXED: Added a key to force rebuild when profile is completed
+  Key _profileCheckKey = UniqueKey();
+
+  void _onProfileComplete() {
+    setState(() {
+      _profileCheckKey = UniqueKey(); // Force rebuild
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,8 +36,8 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (snapshot.hasData) {
-          // User is logged in, check if profile is complete
           return FutureBuilder<bool>(
+            key: _profileCheckKey, // ✅ FIXED: Added key for proper rebuild
             future: FirebaseProfileActions.isProfileComplete(),
             builder: (context, profileSnapshot) {
               if (profileSnapshot.connectionState == ConnectionState.waiting) {
@@ -34,18 +49,13 @@ class AuthWrapper extends StatelessWidget {
               }
 
               final bool isProfileComplete = profileSnapshot.data ?? false;
+              
+              print('Profile completion check: $isProfileComplete'); // Debug log
 
               if (!isProfileComplete) {
                 // Profile not complete, show profile setup
                 return ProfileSetupScreen(
-                  onProfileComplete: () {
-                    // Refresh the auth wrapper to check profile status again
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => const AuthWrapper(),
-                      ),
-                    );
-                  },
+                  onProfileComplete: _onProfileComplete, // ✅ FIXED: Use local callback
                 );
               } else {
                 // Profile complete, show main app
@@ -61,8 +71,3 @@ class AuthWrapper extends StatelessWidget {
     );
   }
 }
-
-// Example Home Screen (replace with your actual home screen)
-
-
-// Example Login Screen (replace with your actual login screen)

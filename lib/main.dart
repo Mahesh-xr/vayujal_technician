@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:vayujal_technician/firebase_options.dart';
 import 'package:vayujal_technician/screens/all_service_request_page.dart';
 import 'package:vayujal_technician/screens/dashboard_screen.dart';
+import 'package:vayujal_technician/screens/login_screen.dart';
 import 'screens/auth_wrapper.dart';
 import 'utils/constants.dart';
 
@@ -70,6 +71,7 @@ class MyApp extends StatelessWidget {
         '/history': (context) => const AllServiceRequestsPage(
               initialFilter: 'Completed',
             ),
+            '/login':(context) => const LoginScreen()
       },
     );
   }

@@ -56,7 +56,7 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
 
   // Dropdown options
   static List<String> _complaintTypes = [
-    'Eletrical','Refrigeration', 'Filtration', 'Mechanical', 'General Service', 'Others'
+    'Electrical','Refrigeration', 'Filtration', 'Mechanical', 'General Service', 'Others'
   ];
 
   static List<String> _issueTypes = [
@@ -89,145 +89,151 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // SR Number (Read-only)
-              _buildReadOnlyField('SR Number', widget.srNumber),
-              const SizedBox(height: 16),
-              
-              // Customer Complaint (Read-only)
-              _buildReadOnlyField('Customer Complaint', widget.customerComplaint),
-              const SizedBox(height: 24),
+        child: Column( // Changed from SingleChildScrollView to Column
+          children: [
+            Expanded( // Now Expanded is properly inside Column
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // SR Number (Read-only)
+                    _buildReadOnlyField('SR Number', widget.srNumber),
+                    const SizedBox(height: 16),
+                    
+                    // Customer Complaint (Read-only)
+                    _buildReadOnlyField('Customer Complaint', widget.customerComplaint),
+                    const SizedBox(height: 24),
 
-              // Front View Photo Section
-              _buildMultiplePhotoSection(
-                'Front View',
-                _frontViewImages,
-                _frontViewUploading,
-                () => _showImageSourceDialog('front'),
-              ),
-              const SizedBox(height: 24),
-              
-              // Left View Photo Section
-              _buildMultiplePhotoSection(
-                'Left View',
-                _leftViewImages,
-                _leftViewUploading,
-                () => _showImageSourceDialog('left'),
-              ),
-              const SizedBox(height: 16),
-              
-              // Right View Photo Section
-              _buildMultiplePhotoSection(
-                'Right View',
-                _rightViewImages,
-                _rightViewUploading,
-                () => _showImageSourceDialog('right'),
-              ),
-              const SizedBox(height: 24),
-              
-              // Complaint Details Section
-              _buildSectionTitle('Complaint Details'),
-              const Text(
-                'Select related components',
-                style: TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              
-              // Complaint Related to Dropdown
-              _buildDropdownField(
-                'Complaint Related to',
-                _selectedComplaintType,
-                _complaintTypes,
-                (value) => setState(() => _selectedComplaintType = value),
-              ),
-              
-              // Show "Mention if Others" field for complaint type
-              if (_selectedComplaintType == 'Others')
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: _buildTextField(
-                    'Mention if Others',
-                    _complaintOthersController,
-                  ),
-                ),
-              
-              const SizedBox(height: 16),
-              
-              // Type of Raised Issue Dropdown
-              _buildDropdownField(
-                'Type of Raised Issue',
-                _selectedIssueType,
-                _issueTypes,
-                (value) => setState(() => _selectedIssueType = value),
-              ),
-              
-              // Show "Mention if Others" field for issue type
-              if (_selectedIssueType == 'Others')
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: _buildTextField(
-                    'Mention if Others',
-                    _issueOthersController,
-                  ),
-                ),
-              
-              const SizedBox(height: 24),
-              
-              // Issue Photos Section
-              _buildSectionTitle('Upload Issue Photos'),
-              _buildMultiplePhotoSection(
-                '',
-                _issueImages,
-                _issuePhotoUploading,
-                () => _showImageSourceDialog('issue'),
-              ),
-              const SizedBox(height: 24),
-              
-              // Issue Video Section
-              _buildSectionTitle('Upload Issue Video (10 seconds)'),
-              _buildVideoSection(),
-              const SizedBox(height: 32),
-              
-              // Continue to Resolution Button
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isUploading ? null : _saveServiceData,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                    // Front View Photo Section
+                    _buildMultiplePhotoSection(
+                      'Front View',
+                      _frontViewImages,
+                      _frontViewUploading,
+                      () => _showImageSourceDialog('front'),
                     ),
-                    child: _isUploading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            'Continue to Resolution',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
+                    const SizedBox(height: 24),
+                    
+                    // Left View Photo Section
+                    _buildMultiplePhotoSection(
+                      'Left View',
+                      _leftViewImages,
+                      _leftViewUploading,
+                      () => _showImageSourceDialog('left'),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Right View Photo Section
+                    _buildMultiplePhotoSection(
+                      'Right View',
+                      _rightViewImages,
+                      _rightViewUploading,
+                      () => _showImageSourceDialog('right'),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Complaint Details Section
+                    _buildSectionTitle('Complaint Details'),
+                    const Text(
+                      'Select related components',
+                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Complaint Related to Dropdown
+                    _buildDropdownField(
+                      'Complaint Related to',
+                      _selectedComplaintType,
+                      _complaintTypes,
+                      (value) => setState(() => _selectedComplaintType = value),
+                    ),
+                    
+                    // Show "Mention if Others" field for complaint type
+                    if (_selectedComplaintType == 'Others')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: _buildTextField(
+                          'Mention if Others',
+                          _complaintOthersController,
+                        ),
+                      ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Type of Raised Issue Dropdown
+                    _buildDropdownField(
+                      'Type of Raised Issue',
+                      _selectedIssueType,
+                      _issueTypes,
+                      (value) => setState(() => _selectedIssueType = value),
+                    ),
+                    
+                    // Show "Mention if Others" field for issue type
+                    if (_selectedIssueType == 'Others')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: _buildTextField(
+                          'Mention if Others',
+                          _issueOthersController,
+                        ),
+                      ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Issue Photos Section
+                    _buildSectionTitle('Upload Issue Photos'),
+                    _buildMultiplePhotoSection(
+                      '',
+                      _issueImages,
+                      _issuePhotoUploading,
+                      () => _showImageSourceDialog('issue'),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Issue Video Section
+                    _buildSectionTitle('Upload Issue Video (10 seconds)'),
+                    _buildVideoSection(),
+                    const SizedBox(height: 32),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+            
+            // Continue to Resolution Button - Fixed positioning
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isUploading ? null : _saveServiceData,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: _isUploading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Continue to Resolution',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -281,7 +287,7 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
         
         // Images preview
         if (images.isNotEmpty)
-          Container(
+          SizedBox( // Changed from Container to SizedBox
             height: 120,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
@@ -312,7 +318,7 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
                           },
                           child: Container(
                             padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),
@@ -443,7 +449,7 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
                           },
                           child: Container(
                             padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.black54,
                               shape: BoxShape.circle,
                             ),
@@ -467,7 +473,7 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
                           },
                           child: Container(
                             padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),
@@ -760,16 +766,16 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
             bool? addMore = await showDialog<bool>(
               context: context,
               builder: (context) => AlertDialog(
-                title: Text('Add More Images'),
+                title: const Text('Add More Images'),
                 content: Text('You have added ${targetList.length} image(s). Do you want to add more? (Max: $maxImagesPerView)'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, false),
-                    child: Text('No'),
+                    child: const Text('No'),
                   ),
                   TextButton(
                     onPressed: () => Navigator.pop(context, true),
-                    child: Text('Yes'),
+                    child: const Text('Yes'),
                   ),
                 ],
               ),

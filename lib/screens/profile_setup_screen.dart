@@ -119,22 +119,30 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     });
 
     try {
+      print('Starting profile setup with image: ${_selectedImage != null}');
+      
       final result = await FirebaseProfileActions.completeProfileSetup(
         name: _nameController.text,
         employeeId: _employeeIdController.text,
         mobileNumber: _mobileController.text,
         email: _emailController.text,
         designation: _selectedDesignation,
-        
+        profileImage: _selectedImage, // ✅ FIXED: Uncommented this line
       );
 
+      print('Profile setup result: $result');
+
       if (result['success']) {
+        // ✅ FIXED: Show success message and navigate properly
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message']),
             backgroundColor: AppConstants.successColor,
           ),
         );
+        
+        // ✅ FIXED: Wait a bit before navigating to ensure the snackbar is shown
+        await Future.delayed(const Duration(milliseconds: 500));
         
         // Call the callback to notify parent
         if (widget.onProfileComplete != null) {
@@ -143,12 +151,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ),
+            content: Text(result['message']),
             backgroundColor: AppConstants.errorColor,
           ),
         );
       }
     } catch (e) {
+      print('Error in _saveProfile: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('An error occurred: ${e.toString()}'),

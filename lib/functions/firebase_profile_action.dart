@@ -170,8 +170,7 @@ class FirebaseProfileActions {
 
       // Handle profile image upload if provided
       if (profileImage != null) {
-        print('=== STARTING IMAGE UPLOAD PROCESS ===');
-        print('Testing storage connectivity...');
+       
         
         final bool isStorageAccessible = await testStorageConnectivity();
         print('Storage accessible: $isStorageAccessible');
@@ -277,27 +276,44 @@ class FirebaseProfileActions {
     }
   }
 
-  /// Check if user profile is complete
-  static Future<bool> isProfileComplete() async {
-    try {
-      final User? user = _auth.currentUser;
-      if (user == null) return false;
-
-      final DocumentSnapshot doc = await _firestore
-          .collection(AppConstants.techniciansCollection)
-          .doc(user.uid)
-          .get();
-
-      if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>?;
-        return data?['isProfileComplete'] ?? false;
-      }
-      return false;
-    } catch (e) {
-      print('Error checking profile completion: $e');
+/// Check if user profile is complete
+static Future<bool> isProfileComplete() async {
+  try {
+    final User? user = _auth.currentUser;
+    print('Current user: ${user?.uid}');
+    
+    if (user == null) {
+      print('No user found - returning false');
       return false;
     }
+
+    final DocumentSnapshot doc = await _firestore
+        .collection(AppConstants.techniciansCollection)
+        .doc(user.uid)
+        .get();
+
+    print('Document exists: ${doc.exists}');
+    
+    if (doc.exists) {
+      final data = doc.data() as Map<String, dynamic>?;
+      print('Document data: $data');
+      
+      final isComplete = data?['isProfileComplete'] ?? false;
+      print('Profile complete status: $isComplete');
+      print('=== PROFILE COMPLETION CHECK END ===');
+      
+      return isComplete;
+    }
+    
+    print('Document does not exist - returning false');
+    print('=== PROFILE COMPLETION CHECK END ===');
+    return false;
+  } catch (e) {
+    print('Error checking profile completion: $e');
+    print('=== PROFILE COMPLETION CHECK END ===');
+    return false;
   }
+}
 
   /// Get technician profile data
   static Future<Map<String, dynamic>?> getTechnicianProfile() async {

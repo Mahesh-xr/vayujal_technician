@@ -83,6 +83,17 @@ class _ResolutionPageState extends State<ResolutionPage> {
     _loadServiceRequestData();
   }
 
+  @override
+  void dispose() {
+    _videoPlayerController?.dispose();
+    _issueTypeController.dispose();
+    _solutionController.dispose();
+    _customSuggestionsController.dispose();
+    _issueOthersController.dispose();
+    _partsOthersController.dispose();
+    super.dispose();
+  }
+
   // Load existing service request data
   Future<void> _loadServiceRequestData() async {
     try {
@@ -93,9 +104,11 @@ class _ResolutionPageState extends State<ResolutionPage> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading data: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading data: $e')),
+        );
+      }
     }
   }
 
@@ -115,7 +128,6 @@ class _ResolutionPageState extends State<ResolutionPage> {
           });
         }
       } else {
-        // Fixed: Using pickImage instead of pickMultipleImages
         final XFile? image = await _picker.pickImage(
           source: ImageSource.gallery,
           maxWidth: 1920,
@@ -129,16 +141,17 @@ class _ResolutionPageState extends State<ResolutionPage> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking images: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking images: $e')),
+        );
+      }
     }
   }
 
   // Alternative method for picking multiple images from gallery
   Future<void> _pickMultipleImagesFromGallery() async {
     try {
-      // Pick images one by one until limit is reached
       while (_resolutionImages.length < 5) {
         final XFile? image = await _picker.pickImage(
           source: ImageSource.gallery,
@@ -152,7 +165,6 @@ class _ResolutionPageState extends State<ResolutionPage> {
             _resolutionImages.add(File(image.path));
           });
           
-          // Ask user if they want to add more images
           if (_resolutionImages.length < 5) {
             bool? addMore = await showDialog<bool>(
               context: context,
@@ -175,64 +187,71 @@ class _ResolutionPageState extends State<ResolutionPage> {
             if (addMore != true) break;
           }
         } else {
-          break; // User cancelled
+          break;
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking images: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking images: $e')),
+        );
+      }
     }
   }
 
   // Pick video (10 seconds max)
-Future<void> _pickVideo() async {
-  try {
-    final XFile? video = await _picker.pickVideo(
-      source: ImageSource.camera,
-      maxDuration: Duration(seconds: 10),
-    );
-    if (video != null) {
-      _initializeVideoPlayer(File(video.path));
+  Future<void> _pickVideo() async {
+    try {
+      final XFile? video = await _picker.pickVideo(
+        source: ImageSource.camera,
+        maxDuration: Duration(seconds: 10),
+      );
+      if (video != null) {
+        _initializeVideoPlayer(File(video.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking video: $e')),
+        );
+      }
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error picking video: $e')),
-    );
   }
-}
 
-Future<void> _pickVideoFromGallery() async {
-  try {
-    final XFile? video = await _picker.pickVideo(
-      source: ImageSource.gallery,
-      maxDuration: Duration(seconds: 10),
-    );
-    if (video != null) {
-      _initializeVideoPlayer(File(video.path));
+  Future<void> _pickVideoFromGallery() async {
+    try {
+      final XFile? video = await _picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: Duration(seconds: 10),
+      );
+      if (video != null) {
+        _initializeVideoPlayer(File(video.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking video: $e')),
+        );
+      }
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error picking video: $e')),
-    );
-  }
-}
-
-Future<void> _initializeVideoPlayer(File videoFile) async {
-  // Dispose any existing controller
-  if (_videoPlayerController != null) {
-    await _videoPlayerController!.dispose();
   }
 
-  setState(() {
-    _resolutionVideo = videoFile;
-    _videoPlayerController = VideoPlayerController.file(videoFile)
-      ..initialize().then((_) {
-        // Ensure the first frame is shown after the video is initialized
-        setState(() {});
-      });
-  });
-}
+  Future<void> _initializeVideoPlayer(File videoFile) async {
+    if (_videoPlayerController != null) {
+      await _videoPlayerController!.dispose();
+    }
+
+    setState(() {
+      _resolutionVideo = videoFile;
+      _videoPlayerController = VideoPlayerController.file(videoFile)
+        ..initialize().then((_) {
+          if (mounted) {
+            setState(() {});
+          }
+        });
+    });
+  }
+
   // Remove image
   void _removeImage(int index) {
     setState(() {
@@ -241,17 +260,18 @@ Future<void> _initializeVideoPlayer(File videoFile) async {
   }
 
   // Remove video
-void _removeVideo() async {
-  if (_videoPlayerController != null) {
-    await _videoPlayerController!.dispose();
+  Future<void> _removeVideo() async {
+    if (_videoPlayerController != null) {
+      await _videoPlayerController!.dispose();
+    }
+    setState(() {
+      _resolutionVideo = null;
+      _videoPlayerController = null;
+      _isVideoPlaying = false;
+    });
   }
-  setState(() {
-    _resolutionVideo = null;
-    _videoPlayerController = null;
-    _isVideoPlaying = false;
-  });
-}
-  // Show image picker dialog - UPDATED
+
+  // Show image picker dialog
   void _showImagePickerDialog() {
     showDialog(
       context: context,
@@ -389,7 +409,6 @@ void _removeVideo() async {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Main item
                     CheckboxListTile(
                       title: Text(
                         mainItem, 
@@ -409,7 +428,6 @@ void _removeVideo() async {
                         });
                       },
                     ),
-                    // Sub items with indentation
                     ...subItems.map((subItem) => Padding(
                       padding: EdgeInsets.only(left: 32),
                       child: CheckboxListTile(
@@ -545,29 +563,37 @@ void _removeVideo() async {
         customSuggestions: _customSuggestionsController.text,
         status: _selectedStatus,
         issueOthers: _issueOthersController.text,
-        partsOthers: _partsOthersController.text, resolutionImage: null, serialNumber: '',
+        partsOthers: _partsOthersController.text,
+        resolutionImage: null,
+        serialNumber: '',
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Resolution submitted successfully!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Resolution submitted successfully!')),
+        );
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ServiceAcknowledgmentScreen(
-            srNumber: widget.srNumber,
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ServiceAcknowledgmentScreen(
+              srNumber: widget.srNumber,
+            ),
           ),
-        ),
-      );
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error submitting resolution: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error submitting resolution: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -582,455 +608,447 @@ void _removeVideo() async {
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Service Request Information
-                    _buildSection(
-                      title: 'Service Request Information',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('SR Number: ${widget.srNumber}', style: TextStyle(fontWeight: FontWeight.w500)),
-                          SizedBox(height: 16),
-                         
-                        ],
+          : SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Service Request Information
+                      _buildSection(
+                        title: 'Service Request Information',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('SR Number: ${widget.srNumber}', style: TextStyle(fontWeight: FontWeight.w500)),
+                            SizedBox(height: 16),
+                          ],
+                        ),
                       ),
-                    ),
-                    
-                    SizedBox(height: 20),
-                    
-                    // Issue Identification
-                    _buildSection(
-                      title: 'Issue Identification',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Select Identified Issues (Multiple Selection)'),
-                          SizedBox(height: 8),
-                          InkWell(
-                            onTap: _showIssueSelectionDialog,
-                            child: Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _selectedIssues.isEmpty 
-                                        ? 'Tap to select issues'
-                                        : 'Selected Issues (${_selectedIssues.length}):',
-                                    style: TextStyle(
-                                      color: _selectedIssues.isEmpty ? Colors.grey : Colors.blue[800],
-                                      fontWeight: _selectedIssues.isEmpty ? FontWeight.normal : FontWeight.bold,
-                                    ),
-                                  ),
-                                  if (_selectedIssues.isNotEmpty) ...[
-                                    SizedBox(height: 8),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Issue Identification
+                      _buildSection(
+                        title: 'Issue Identification',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Select Identified Issues (Multiple Selection)'),
+                            SizedBox(height: 8),
+                            InkWell(
+                              onTap: _showIssueSelectionDialog,
+                              child: Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     Text(
-                                      _selectedIssues.join(', '),
-                                      style: TextStyle(color: Colors.black87),
+                                      _selectedIssues.isEmpty 
+                                          ? 'Tap to select issues'
+                                          : 'Selected Issues (${_selectedIssues.length}):',
+                                      style: TextStyle(
+                                        color: _selectedIssues.isEmpty ? Colors.grey : Colors.blue[800],
+                                        fontWeight: _selectedIssues.isEmpty ? FontWeight.normal : FontWeight.bold,
+                                      ),
                                     ),
+                                    if (_selectedIssues.isNotEmpty) ...[
+                                      SizedBox(height: 8),
+                                      Text(
+                                        _selectedIssues.join(', '),
+                                        style: TextStyle(color: Colors.black87),
+                                      ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                          if (_selectedIssues.contains('Others')) ...[
+                            if (_selectedIssues.contains('Others')) ...[
+                              SizedBox(height: 16),
+                              Text('Specify Others'),
+                              SizedBox(height: 8),
+                              TextFormField(
+                                controller: _issueOthersController,
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(),
+                                  hintText: 'Enter other issues',
+                                ),
+                                validator: (value) {
+                                  if (_selectedIssues.contains('Others') && (value == null || value.isEmpty)) {
+                                    return 'Please specify other issues';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
                             SizedBox(height: 16),
-                            Text('Specify Others'),
+                            Text('Type of identified issue'),
                             SizedBox(height: 8),
                             TextFormField(
-                              controller: _issueOthersController,
+                              controller: _issueTypeController,
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(),
-                                hintText: 'Enter other issues',
+                                hintText: 'Mention if others.',
+                              ),
+                            ),
+                            SizedBox(height: 16),
+                            Text('Solution Provided'),
+                            SizedBox(height: 8),
+                            TextFormField(
+                              controller: _solutionController,
+                              maxLines: 3,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                hintText: 'Describe the solution provided',
                               ),
                               validator: (value) {
-                                if (_selectedIssues.contains('Others') && (value == null || value.isEmpty)) {
-                                  return 'Please specify other issues';
+                                if (value == null || value.isEmpty) {
+                                  return 'Please describe the solution';
                                 }
                                 return null;
                               },
                             ),
                           ],
-                          SizedBox(height: 16),
-                          Text('Type of identified issue'),
-                          SizedBox(height: 8),
-                          TextFormField(
-                            controller: _issueTypeController,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              hintText: 'Mention if others.',
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          Text('Solution Provided'),
-                          SizedBox(height: 8),
-                          TextFormField(
-                            controller: _solutionController,
-                            maxLines: 3,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              hintText: 'Describe the solution provided',
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please describe the solution';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                    
-                    SizedBox(height: 20),
-                    
-                    // Parts Replacement
-                    _buildSection(
-                      title: 'Parts Replacement',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Select Parts Replaced (Multiple Selection)'),
-                          SizedBox(height: 8),
-                          InkWell(
-                            onTap: _showPartsSelectionDialog,
-                            child: Container(
+                      
+                      SizedBox(height: 20),
+                      
+                      // Parts Replacement
+                      _buildSection(
+                        title: 'Parts Replacement',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Select Parts Replaced (Multiple Selection)'),
+                            SizedBox(height: 8),
+                            InkWell(
+                              onTap: _showPartsSelectionDialog,
+                              child: Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _selectedParts.isEmpty 
+                                          ? 'Tap to select parts'
+                                          : 'Selected Parts (${_selectedParts.length}):',
+                                      style: TextStyle(
+                                        color: _selectedParts.isEmpty ? Colors.grey : Colors.blue[800],
+                                        fontWeight: _selectedParts.isEmpty ? FontWeight.normal : FontWeight.bold,
+                                      ),
+                                    ),
+                                    if (_selectedParts.isNotEmpty) ...[
+                                      SizedBox(height: 8),
+                                      Text(
+                                        _selectedParts.join(', '),
+                                        style: TextStyle(color: Colors.black87),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (_selectedParts.contains('Others')) ...[
+                              SizedBox(height: 16),
+                              Text('Specify Others'),
+                              SizedBox(height: 8),
+                              TextFormField(
+                                controller: _partsOthersController,
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(),
+                                  hintText: 'Enter other parts',
+                                ),
+                                validator: (value) {
+                                  if (_selectedParts.contains('Others') && (value == null || value.isEmpty)) {
+                                    return 'Please specify other parts';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Upload Resolution Photos and Video
+                      _buildSection(
+                        title: 'Upload Post Resolution Photos & Video',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Photos (up to 5)'),
+                            SizedBox(height: 8),
+                            Container(
                               width: double.infinity,
-                              padding: EdgeInsets.all(16),
+                              height: 120,
                               decoration: BoxDecoration(
                                 border: Border.all(color: Colors.grey.shade300),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _selectedParts.isEmpty 
-                                        ? 'Tap to select parts'
-                                        : 'Selected Parts (${_selectedParts.length}):',
-                                    style: TextStyle(
-                                      color: _selectedParts.isEmpty ? Colors.grey : Colors.blue[800],
-                                      fontWeight: _selectedParts.isEmpty ? FontWeight.normal : FontWeight.bold,
+                              child: _resolutionImages.isNotEmpty
+                                  ? ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _resolutionImages.length,
+                                      itemBuilder: (context, index) {
+                                        return Container(
+                                          width: 100,
+                                          margin: EdgeInsets.all(8),
+                                          child: Stack(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius: BorderRadius.circular(8),
+                                                child: Image.file(
+                                                  _resolutionImages[index],
+                                                  fit: BoxFit.cover,
+                                                  width: 100,
+                                                  height: 100,
+                                                ),
+                                              ),
+                                              Positioned(
+                                                right: 0,
+                                                top: 0,
+                                                child: GestureDetector(
+                                                  onTap: () => _removeImage(index),
+                                                  child: Container(
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.red,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: Icon(
+                                                      Icons.close,
+                                                      color: Colors.white,
+                                                      size: 20,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    )
+                                  : Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.camera_alt, size: 40, color: Colors.grey),
+                                        SizedBox(height: 8),
+                                        Text('No Photos uploaded', style: TextStyle(color: Colors.grey)),
+                                      ],
                                     ),
-                                  ),
-                                  if (_selectedParts.isNotEmpty) ...[
-                                    SizedBox(height: 8),
-                                    Text(
-                                      _selectedParts.join(', '),
-                                      style: TextStyle(color: Colors.black87),
-                                    ),
-                                  ],
-                                ],
-                              ),
                             ),
-                          ),
-                          if (_selectedParts.contains('Others')) ...[
                             SizedBox(height: 16),
-                            Text('Specify Others'),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: _resolutionImages.length < 5 ? _showImagePickerDialog : null,
+                                    child: Text('Upload Photos (${_resolutionImages.length}/5)'),
+                                  ),
+                                ),
+                                SizedBox(width: 16),
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: _resolutionImages.length < 5 ? () => _pickImages(ImageSource.camera) : null,
+                                    child: Text('Take Photos'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 20),
+                            Text('Video (10 seconds max)'),
                             SizedBox(height: 8),
-                            TextFormField(
-                              controller: _partsOthersController,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(),
-                                hintText: 'Enter other parts',
+                            Container(
+                              width: double.infinity,
+                              height: 200,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.black.withOpacity(0.1),
                               ),
-                              validator: (value) {
-                                if (_selectedParts.contains('Others') && (value == null || value.isEmpty)) {
-                                  return 'Please specify other parts';
-                                }
-                                return null;
-                              },
+                              child: _resolutionVideo != null
+                                  ? Stack(
+                                      children: [
+                                        Center(
+                                          child: AspectRatio(
+                                            aspectRatio: _videoPlayerController?.value.aspectRatio ?? 16/9,
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: _videoPlayerController != null && 
+                                                     _videoPlayerController!.value.isInitialized
+                                                  ? VideoPlayer(_videoPlayerController!)
+                                                  : Container(
+                                                      color: Colors.black,
+                                                      child: Center(
+                                                        child: CircularProgressIndicator(
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ),
+                                            ),
+                                          ),
+                                        ),
+                                        Center(
+                                          child: IconButton(
+                                            icon: Icon(
+                                              _isVideoPlaying ? Icons.pause : Icons.play_arrow,
+                                              size: 50,
+                                              color: Colors.white.withOpacity(0.8),
+                                            ),
+                                            onPressed: () {
+                                              if (_videoPlayerController != null) {
+                                                setState(() {
+                                                  if (_isVideoPlaying) {
+                                                    _videoPlayerController!.pause();
+                                                  } else {
+                                                    _videoPlayerController!.play();
+                                                  }
+                                                  _isVideoPlaying = !_isVideoPlaying;
+                                                });
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                        if (_videoPlayerController != null &&
+                                            _videoPlayerController!.value.isInitialized)
+                                          Positioned(
+                                            left: 8,
+                                            right: 8,
+                                            bottom: 8,
+                                            child: VideoProgressIndicator(
+                                              _videoPlayerController!,
+                                              allowScrubbing: true,
+                                              colors: VideoProgressColors(
+                                                playedColor: Colors.red,
+                                                bufferedColor: Colors.grey.shade600,
+                                                backgroundColor: Colors.grey.shade800,
+                                              ),
+                                            ),
+                                          ),
+                                        Positioned(
+                                          right: 8,
+                                          top: 8,
+                                          child: GestureDetector(
+                                            onTap: _removeVideo,
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.red,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(
+                                                Icons.close,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.videocam, size: 40, color: Colors.grey),
+                                        SizedBox(height: 8),
+                                        Text('No Video uploaded', style: TextStyle(color: Colors.grey)),
+                                      ],
+                                    ),
+                            ),
+                            SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
+                                onPressed: _resolutionVideo == null ? _showVideoPickerDialog : null,
+                                child: Text('Upload Video (10 sec max)'),
+                              ),
                             ),
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                    
-                    SizedBox(height: 20),
-                    
-                    // Upload Resolution Photos and Video
-                    _buildSection(
-                      title: 'Upload Post Resolution Photos & Video',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Photos (up to 5)'),
-                          SizedBox(height: 8),
-                          Container(
+                      
+                      SizedBox(height: 20),
+                      
+                      // Next Service Date
+                      _buildSection(
+                        title: 'Next Service Date',
+                        child: InkWell(
+                          onTap: _selectNextServiceDate,
+                          child: Container(
                             width: double.infinity,
-                            height: 120,
+                            padding: EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.grey.shade300),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: _resolutionImages.isNotEmpty
-                                ? ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: _resolutionImages.length,
-                                    itemBuilder: (context, index) {
-                                      return Container(
-                                        width: 100,
-                                        margin: EdgeInsets.all(8),
-                                        child: Stack(
-                                          children: [
-                                            ClipRRect(
-                                              borderRadius: BorderRadius.circular(8),
-                                              child: Image.file(
-                                                _resolutionImages[index],
-                                                fit: BoxFit.cover,
-                                                width: 100,
-                                                height: 100,
-                                              ),
-                                            ),
-                                            Positioned(
-                                              right: 0,
-                                              top: 0,
-                                              child: GestureDetector(
-                                                onTap: () => _removeImage(index),
-                                                child: Container(
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.red,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: Icon(
-                                                    Icons.close,
-                                                    color: Colors.white,
-                                                    size: 20,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  )
-                                : Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.camera_alt, size: 40, color: Colors.grey),
-                                      SizedBox(height: 8),
-                                      Text('No Photos uploaded', style: TextStyle(color: Colors.grey)),
-                                    ],
-                                  ),
-                          ),
-                          SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: _resolutionImages.length < 5 ? _showImagePickerDialog : null,
-                                  child: Text('Upload Photos (${_resolutionImages.length}/5)'),
-                                ),
-                              ),
-                              SizedBox(width: 16),
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: _resolutionImages.length < 5 ? () => _pickImages(ImageSource.camera) : null,
-                                  child: Text('Take Photos'),
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 20),
-                          Text('Video (10 seconds max)'),
-                          SizedBox(height: 8),
-                          Container(
-  width: double.infinity,
-  height: 200, // Increased height for better video viewing
-  decoration: BoxDecoration(
-    border: Border.all(color: Colors.grey.shade300),
-    borderRadius: BorderRadius.circular(8),
-    color: Colors.black.withOpacity(0.1), // Slight background for better contrast
-  ),
-  child: _resolutionVideo != null
-      ? Stack(
-          children: [
-            // Video Player Preview
-            Center(
-              child: AspectRatio(
-                aspectRatio: _videoPlayerController?.value.aspectRatio ?? 16/9,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: _videoPlayerController != null && 
-                         _videoPlayerController!.value.isInitialized
-                      ? VideoPlayer(_videoPlayerController!)
-                      : Container(
-                          color: Colors.black,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(DateFormat('dd-MM-yyyy').format(_nextServiceDate)),
+                                Icon(Icons.calendar_today, color: Colors.grey),
+                              ],
                             ),
                           ),
                         ),
-                ),
-              ),
-            ),
-
-            // Play/Pause Controls
-            Center(
-              child: IconButton(
-                icon: Icon(
-                  _isVideoPlaying ? Icons.pause : Icons.play_arrow,
-                  size: 50,
-                  color: Colors.white.withOpacity(0.8),
-                ),
-                onPressed: () {
-                  if (_videoPlayerController != null) {
-                    setState(() {
-                      if (_isVideoPlaying) {
-                        _videoPlayerController!.pause();
-                      } else {
-                        _videoPlayerController!.play();
-                      }
-                      _isVideoPlaying = !_isVideoPlaying;
-                    });
-                  }
-                },
-              ),
-            ),
-
-            // Video Duration Indicator
-            if (_videoPlayerController != null &&
-                _videoPlayerController!.value.isInitialized)
-              Positioned(
-                left: 8,
-                right: 8,
-                bottom: 8,
-                child: VideoProgressIndicator(
-                  _videoPlayerController!,
-                  allowScrubbing: true,
-                  colors: VideoProgressColors(
-                    playedColor: Colors.red,
-                    bufferedColor: Colors.grey.shade600,
-                    backgroundColor: Colors.grey.shade800,
-                  ),
-                ),
-              ),
-
-            // Remove Button
-            Positioned(
-              right: 8,
-              top: 8,
-              child: GestureDetector(
-                onTap: _removeVideo,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        )
-      : Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.videocam, size: 40, color: Colors.grey),
-            SizedBox(height: 8),
-            Text('No Video uploaded', style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-),
-                          SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton(
-                              onPressed: _resolutionVideo == null ? _showVideoPickerDialog : null,
-                              child: Text('Upload Video (10 sec max)'),
-                            ),
-                          ),
-                        ],
                       ),
-                    ),
-                    
-                    SizedBox(height: 20),
-                    
-                    // Next Service Date
-                    _buildSection(
-                      title: 'Next Service Date',
-                      child: InkWell(
-                        onTap: _selectNextServiceDate,
-                        child: Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(DateFormat('dd-MM-yyyy').format(_nextServiceDate)),
-                              Icon(Icons.calendar_today, color: Colors.grey),
-                            ],
-                          ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Suggestions
+                      _buildSection(
+                        title: 'Suggestions',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Provide customer suggestions'),
+                            SizedBox(height: 16),
+                            ..._suggestions.entries.map((entry) => CheckboxListTile(
+                              title: Text(_getSuggestionText(entry.key)),
+                              value: entry.value,
+                              onChanged: (value) {
+                                setState(() {
+                                  _suggestions[entry.key] = value ?? false;
+                                });
+                              },
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.zero,
+                            )),
+                            SizedBox(height: 16),
+                            Text('Custom Suggestions'),
+                            SizedBox(height: 8),
+                            TextFormField(
+                              controller: _customSuggestionsController,
+                              maxLines: 3,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                hintText: 'Enter any additional suggestions',
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    
-                    SizedBox(height: 20),
-                    
-                    // Suggestions
-                    _buildSection(
-                      title: 'Suggestions',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Provide customer suggestions'),
-                          SizedBox(height: 16),
-                          ..._suggestions.entries.map((entry) => CheckboxListTile(
-                            title: Text(_getSuggestionText(entry.key)),
-                            value: entry.value,
-                            onChanged: (value) {
-                              setState(() {
-                                _suggestions[entry.key] = value ?? false;
-                              });
-                            },
-                            controlAffinity: ListTileControlAffinity.leading,
-                            contentPadding: EdgeInsets.zero,
-                          )),
-                          SizedBox(height: 16),
-                          Text('Custom Suggestions'),
-                          SizedBox(height: 8),
-                          TextFormField(
-                            controller: _customSuggestionsController,
-                            maxLines: 3,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              hintText: 'Enter any additional suggestions',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    SizedBox(height: 20),
-                    
-                    // Status
-                    _buildSection(
-                      title: 'Status',
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: CheckboxListTile(
+                      
+                      SizedBox(height: 20),
+                      
+                      // Status - FIXED: Removed Expanded widgets
+                      _buildSection(
+                        title: 'Status',
+                        child: Column(
+                          children: [
+                            CheckboxListTile(
                               title: Text('Completed'),
                               value: _selectedStatus == 'completed',
                               onChanged: (value) {
@@ -1040,9 +1058,7 @@ void _removeVideo() async {
                               },
                               controlAffinity: ListTileControlAffinity.leading,
                             ),
-                          ),
-                          Expanded(
-                            child: CheckboxListTile(
+                            CheckboxListTile(
                               title: Text('Pending'),
                               value: _selectedStatus == 'pending',
                               onChanged: (value) {
@@ -1052,9 +1068,7 @@ void _removeVideo() async {
                               },
                               controlAffinity: ListTileControlAffinity.leading,
                             ),
-                          ),
-                          Expanded(
-                            child: CheckboxListTile(
+                            CheckboxListTile(
                               title: Text('In Progress'),
                               value: _selectedStatus == 'in_progress',
                               onChanged: (value) {
@@ -1064,35 +1078,35 @@ void _removeVideo() async {
                               },
                               controlAffinity: ListTileControlAffinity.leading,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    SizedBox(height: 30),
-                    
-                    // Submit Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _submitResolution,
-                        style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: Colors.black
-                        ),
-                        child: Text(
-                          'SUBMIT RESOLUTION',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                          ],
                         ),
                       ),
-                    ),
-                    
-                    SizedBox(height: 20),
-                  ],
+                      
+                      SizedBox(height: 30),
+                      
+                      // Submit Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _submitResolution,
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: Colors.black
+                          ),
+                          child: Text(
+                            'SUBMIT RESOLUTION',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               ),
             ),
