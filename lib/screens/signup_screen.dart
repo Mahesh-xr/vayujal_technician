@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vayujal_technician/navigation/NormalAppBar.dart';
 import 'login_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -90,38 +91,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Sign Up',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Image.asset(
-              "assets/images/ayujal_logo.png",
-              width: 100,
-              height: 100,
-              errorBuilder: (context, error, stackTrace) {
-                return const Text(
-                  'VAYUJAL',
-                  style: TextStyle(
-                    color: Colors.blue,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+      appBar: Normalappbar(title:'Login'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(

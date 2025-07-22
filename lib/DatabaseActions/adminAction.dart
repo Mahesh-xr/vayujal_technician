@@ -508,6 +508,32 @@ static Future<List<Map<String, dynamic>>> getEmployeeServiceRequestsByStatus(Str
     }
   }
 
+   static Future<Map<String, dynamic>?> getServiceHistoryBySrId(String srId) async {
+    try {
+      // Query the serviceHistory collection using srId as document ID
+      DocumentSnapshot doc = await _firestore
+          .collection('serviceHistory')
+          .doc(srId)
+          .get();
+
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        
+        // Add document ID to the data for reference
+        data['id'] = doc.id;
+        
+        return data;
+      } else {
+        // Document doesn't exist
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching service history for SR ID $srId: $e');
+      throw Exception('Failed to fetch service history: $e');
+    }
+  }
+
+
   /// Get service request by ID
   static Future<Map<String, dynamic>?> getServiceRequestById(String serviceRequestId) async {
     try {

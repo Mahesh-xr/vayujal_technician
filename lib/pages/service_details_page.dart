@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:vayujal_technician/DatabaseActions/adminAction.dart';
+import 'package:vayujal_technician/pages/videoPlayerHelper.dart';
 import 'package:vayujal_technician/screens/service_hostory_screen.dart';
 import 'package:vayujal_technician/screens/startservice.dart';
-import 'package:vayujal_technician/utils/submit_botton.dart';
-
+import 'package:vayujal_technician/utils/submit_button.dart';
 
 class ServiceDetailsPage extends StatefulWidget {
   final String serviceRequestId;
@@ -19,6 +19,7 @@ class ServiceDetailsPage extends StatefulWidget {
 
 class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   Map<String, dynamic>? _serviceRequest;
+  Map<String, dynamic>? _serviceHistory;
   bool _isLoading = true;
 
   @override
@@ -34,8 +35,11 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
 
     try {
       Map<String, dynamic>? serviceRequest = await AdminAction.getServiceRequestById(widget.serviceRequestId);
+      Map<String, dynamic>? serviceHistory = await AdminAction.getServiceHistoryBySrId(widget.serviceRequestId);
+      
       setState(() {
         _serviceRequest = serviceRequest;
+        _serviceHistory = serviceHistory;
         _isLoading = false;
       });
     } catch (e) {
@@ -67,7 +71,24 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     }
   }
 
+  String _formatDateTime(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+    
+    try {
+      DateTime date;
+      if (timestamp is String) {
+        date = DateTime.parse(timestamp);
+      } else {
+        date = timestamp.toDate();
+      }
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
   Widget _buildDetailCard(String title, Widget content) {
+   
     return Card(
       color: Colors.white,
       margin: const EdgeInsets.only(bottom: 16),
@@ -77,20 +98,23 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+        child: Container(
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            content,
-          ],
+              const SizedBox(height: 12),
+              content,
+            ],
+          ),
         ),
       ),
     );
@@ -125,76 +149,57 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     );
   }
 
+  Widget _buildChipList(String label, dynamic items) {
+    List<dynamic> itemList = [];
 
-  // Add this method to your ServiceDetailsPage class
-  Widget _buildStartServiceButton() {
-    // Extract the complaint/description for the service
-    Map<String, dynamic> serviceDetails = _serviceRequest?['serviceDetails'] ?? {};
-    String customerComplaint = serviceDetails['description'] ?? 
-                              serviceDetails['comments'] ?? 
-                              'Service request';
-    
-    String srNumber = _serviceRequest?['serviceDetails']?['srId'] ?? 
-                     _serviceRequest?['srId'] ?? 
-                     widget.serviceRequestId;
-    
-    return Card(
-      color: Colors.white,
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Service Action',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => StartServiceScreen(
-                        awgSerialNumber: _serviceRequest?['deviceId'] ?? '',
-                        srNumber: srNumber,
-                        customerComplaint: customerComplaint,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.build, color: Colors.white),
-                label: const Text(
-                  'Start Service',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ),
-          ],
+    if (items == null) {
+      return _buildDetailRow(label, 'None');
+    } else if (items is List) {
+      itemList = items;
+    } else if (items is String) {
+      if (items.isNotEmpty) {
+        itemList = [items];
+      }
+    } else {
+      itemList = [items.toString()];
+    }
+
+    if (itemList.isEmpty) {
+      return _buildDetailRow(label, 'None');
+    }
+
+    String itemText = itemList.join(', ');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$label:',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[700],
+          ),
         ),
-      ),
+        const SizedBox(height: 8),
+        Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            itemText,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.blue.shade700,
+            ),
+            softWrap: true,
+            overflow: TextOverflow.visible,
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 
@@ -233,11 +238,8 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   }
 
   Widget _buildServiceHistory() {
-    // Check if service history exists
-    Map<String, dynamic> serviceDetails = _serviceRequest?['equipmentDetails']['amcDetails']?? {};
+    Map<String, dynamic> serviceDetails = _serviceRequest?['equipmentDetails']['amcDetails'] ?? {};
     
-    // For now, we'll show basic service information
-    // You can extend this to fetch actual service history from a separate collection
     return _buildDetailCard(
       'Service History',
       Column(
@@ -249,17 +251,16 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
           SubmitButton(
             text: "View Full History",
             onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ServiceHistoryScreen(serialNumber: _serviceRequest?['deviceId'] ,),
-      ),
-    );
-  })
-           
-         
-        
-          
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ServiceHistoryScreen(
+                    serialNumber: _serviceRequest?['deviceId'],
+                  ),
+                ),
+              );
+            }
+          )
         ],
       ),
     );
@@ -271,54 +272,32 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     String description = serviceDetails['description'] ?? '';
     String comments = serviceDetails['comments'] ?? '';
     
-    // Only show complaint details if it's a customer complaint
     if (requestType.toLowerCase().contains('complaint') || 
         description.isNotEmpty || 
         comments.isNotEmpty) {
       
       return _buildDetailCard(
-        
         'Complaint Details',
-        SizedBox(
-          width: 440,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (description.isNotEmpty) ...[
-                const Text(
-                  'Summary',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (comments.isNotEmpty && comments != description) ...[
+              const Text(
+                'Details',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                comments,
+                style: const TextStyle(
+                  color: Colors.black87,
                 ),
-                const SizedBox(height: 12),
-              ],
-              if (comments.isNotEmpty && comments != description) ...[
-                const Text(
-                  'Details',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  comments,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
       );
     }
@@ -326,17 +305,543 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     return const SizedBox.shrink();
   }
 
+  Widget buildLabeledContent({
+    required String content,
+    double fontSize = 14,
+    FontWeight fontWeight = FontWeight.normal,
+    Color? textColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        Text(
+          content,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: fontWeight,
+            color: textColor ?? Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildServiceExecutionDetails() {
+    if (_serviceHistory == null) {
+      return const SizedBox.shrink();
+    }
+
+    return _buildDetailCard(
+      'Service Execution Details',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDetailRow('Status', (_serviceHistory!['status'] ?? '').toString().replaceAll('_', ' ').toUpperCase()),
+          _buildDetailRow('Complaint \nRelated To', _serviceHistory!['complaintRelatedTo'] ?? ''),
+          _buildDetailRow('Type of Issue Raised', _serviceHistory!['typeOfRaisedIssue'] ?? ''),
+          _buildDetailRow('Issue Type', _serviceHistory!['issueType'] ?? ''),
+          const SizedBox(height: 8),
+          _buildChipList('Issue Identification', _serviceHistory!['issueIdentification']),
+          _buildChipList('Parts Replaced', _serviceHistory!['partsReplaced']),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTechnicianDetails() {
+    if (_serviceHistory == null) {
+      return const SizedBox.shrink();
+    }
+
+    return _buildDetailCard(
+      'Technician Details',
+      Column(
+        children: [
+          _buildDetailRow('Technician Name', _serviceHistory!['technician'] ?? ''),
+          _buildDetailRow('Employee ID', _serviceHistory!['empId'] ?? ''),
+          _buildDetailRow('Resolved By ID', _serviceHistory!['resolvedBy'] ?? ''),
+          _buildDetailRow('Service Date', _formatDateTime(_serviceHistory!['timestamp'])),
+          _buildDetailRow('Resolution Date', _formatDateTime(_serviceHistory!['resolutionTimestamp'])),
+          _buildDetailRow('Next Service Date', _formatDate(_serviceHistory!['nextServiceDate'])),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMaintenanceSuggestions() {
+    if (_serviceHistory == null || _serviceHistory!['suggestions'] == null) {
+      return const SizedBox.shrink();
+    }
+
+    Map<String, dynamic> suggestions = _serviceHistory!['suggestions'];
+    List<Widget> suggestionWidgets = [];
+
+    suggestions.forEach((key, value) {
+      if (value == true) {
+        String readableKey = key.replaceAllMapped(
+          RegExp(r'([A-Z])'),
+          (match) => ' ${match.group(1)}',
+        ).toLowerCase();
+        readableKey = readableKey[0].toUpperCase() + readableKey.substring(1);
+        
+        suggestionWidgets.add(
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green.shade600, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    readableKey,
+                    style: TextStyle(color: Colors.green.shade700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    });
+
+    if (suggestionWidgets.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return _buildDetailCard(
+      'Maintenance Suggestions',
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: suggestionWidgets,
+      ),
+    );
+  }
+
+  // Helper method to safely extract URLs from different data types
+  List<String> _extractUrls(dynamic urlData) {
+    if (urlData == null) return [];
+    
+    if (urlData is List) {
+      return urlData
+          .where((url) => url != null && url.toString().isNotEmpty)
+          .map((url) => url.toString())
+          .toList();
+    } else if (urlData is String && urlData.isNotEmpty) {
+      return [urlData];
+    }
+    return [];
+  }
+
+  // Build photo carousel for specific image type
+  Widget _buildPhotoCarousel(List<String> photos, String title, {Color? accentColor}) {
+    if (photos.isEmpty) return const SizedBox.shrink();
+    
+    final PageController pageController = PageController();
+    final Color cardColor = accentColor ?? Colors.blue;
+    
+    return Card(
+      color: Colors.white,
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _getIconForTitle(title),
+                  color: cardColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: cardColor,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${photos.length} photo${photos.length > 1 ? 's' : ''}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 200,
+              child: PageView.builder(
+                controller: pageController,
+                itemCount: photos.length,
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () => _showFullScreenImage(photos[index], title),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: _buildImageWidget(photos[index]),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (photos.length > 1) ...[
+              const SizedBox(height: 12),
+              _buildPhotoIndicators(photos.length, pageController, cardColor),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build video section
+  Widget _buildVideoSection(String? videoUrl, String title, {Color? accentColor}) {
+    if (videoUrl == null || videoUrl.isEmpty) return const SizedBox.shrink();
+    
+    final Color cardColor = accentColor ?? Colors.purple;
+    
+    return Card(
+      color: Colors.white,
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.videocam_outlined,
+                  color: cardColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: cardColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              height: 120,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [cardColor, cardColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: cardColor),
+              ),
+              child: InkWell(
+                onTap: () => _playVideo(videoUrl, title),
+                borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap to Play Video',
+                      style: TextStyle(
+                        color: cardColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build image widget with error handling
+  Widget _buildImageWidget(String imageUrl) {
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: Colors.grey.shade100,
+          child: Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey.shade200,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.image_not_supported_outlined,
+                color: Colors.grey.shade400,
+                size: 48,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Image not available',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Build photo indicators
+  Widget _buildPhotoIndicators(int count, PageController controller, Color accentColor) {
+    return StreamBuilder<int>(
+      stream: Stream.periodic(const Duration(milliseconds: 100)).map((_) {
+        return controller.hasClients ? (controller.page?.round() ?? 0) : 0;
+      }),
+      builder: (context, snapshot) {
+        final currentPage = snapshot.data ?? 0;
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(count, (index) {
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: currentPage == index ? 24 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: currentPage == index ? accentColor : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  // Get appropriate icon for title
+  IconData _getIconForTitle(String title) {
+    switch (title.toLowerCase()) {
+      case 'front view images':
+        return Icons.camera_front_outlined;
+      case 'left view images':
+        return Icons.rotate_left_outlined;
+      case 'right view images':
+        return Icons.rotate_right_outlined;
+      case 'issue images':
+        return Icons.report_problem_outlined;
+      case 'resolution images':
+        return Icons.check_circle_outline;
+      default:
+        return Icons.photo_library_outlined;
+    }
+  }
+
+  // Show full screen image
+  void _showFullScreenImage(String imageUrl, String title) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            title: Text(title, style: const TextStyle(color: Colors.white)),
+            iconTheme: const IconThemeData(color: Colors.white),
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: Colors.white,
+                        size: 64,
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Failed to load image',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Play video
+  void _playVideo(String videoUrl, String title) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => FullscreenVideoPlayer(
+        videoUrl: videoUrl,
+        title: title,
+      ),
+    ),
+  );
+}
+
+  // Enhanced image gallery replacement
+  Widget _buildEnhancedImageGallery() {
+    if (_serviceHistory == null) {
+      return const SizedBox.shrink();
+    }
+
+    // Extract different types of images safely
+    final List<String> frontViewImages = _extractUrls(_serviceHistory!['frontViewImageUrls']);
+    final List<String> leftViewImages = _extractUrls(_serviceHistory!['leftViewImageUrls']);
+    final List<String> rightViewImages = _extractUrls(_serviceHistory!['rightViewImageUrls']);
+    final List<String> issueImages = _extractUrls(_serviceHistory!['issueImageUrls']);
+    final List<String> resolutionImages = _extractUrls(_serviceHistory!['resolutionImageUrl']);
+
+    // Extract video URLs safely
+    final String? issueVideoUrl = _serviceHistory!['issueVideoUrl']?.toString();
+    final String? resolutionVideoUrl = _serviceHistory!['resolutionVideoUrl']?.toString();
+
+    return Column(
+      children: [
+        // Front View Images
+        _buildPhotoCarousel(
+          frontViewImages, 
+          'Front View Images',
+          accentColor: Colors.blue,
+        ),
+        
+        // Left View Images
+        _buildPhotoCarousel(
+          leftViewImages, 
+          'Left View Images',
+          accentColor: Colors.green,
+        ),
+        
+        // Right View Images
+        _buildPhotoCarousel(
+          rightViewImages, 
+          'Right View Images',
+          accentColor: Colors.orange,
+        ),
+        
+        // Issue Images
+        _buildPhotoCarousel(
+          issueImages, 
+          'Issue Images',
+          accentColor: Colors.red,
+        ),
+        
+        // Resolution Images
+        _buildPhotoCarousel(
+          resolutionImages, 
+          'Resolution Images',
+          accentColor: Colors.teal,
+        ),
+        
+        // Issue Video
+        _buildVideoSection(
+          issueVideoUrl,
+          'Issue Video',
+          accentColor: Colors.deepPurple,
+        ),
+        
+        // Resolution Video
+        _buildVideoSection(
+          resolutionVideoUrl,
+          'Resolution Video',
+          accentColor: Colors.indigo,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text('Service Details'),
+        title: const Text('Service Details'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
-        
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -413,6 +918,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                                     color: Colors.white70,
                                   ),
                                 ),
+                            
                               ],
                             ),
                           ),
@@ -429,15 +935,119 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
 
                         // Complaint Details (conditional)
                         _buildComplaintDetails(),
-                        _buildStartServiceButton() 
 
 
+                        _buildStartServiceButton(),
 
+                        // Service Execution Details (only if service history exists)
+                        _buildServiceExecutionDetails(),
+
+                        // Technician Details (only if service history exists)
+                        _buildTechnicianDetails(),
+                        
+                        // Solution Provided
+                        if (_serviceHistory != null && _serviceHistory!['solutionProvided'] != null)
+                          _buildDetailCard(
+                            'Solution Provided', 
+                            buildLabeledContent(content: _serviceHistory!['solutionProvided'] ?? '')
+                          ),
+                              if (_serviceHistory != null && _serviceHistory!['customSuggestions'] != null)
+                          _buildDetailCard(
+                            'Custom Suggestions', 
+                            buildLabeledContent(content: _serviceHistory!['customSuggestions'] ?? '')
+                          ),
+
+                        // Maintenance Suggestions
+                        _buildMaintenanceSuggestions(),
+
+                        // Enhanced Image Gallery
+                        _buildEnhancedImageGallery(),
+
+                       
+                      
+
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
                 ),
     );
   }
+
+
+    // Add this method to your ServiceDetailsPage class
+  Widget _buildStartServiceButton() {
+    // Extract the complaint/description for the service
+    Map<String, dynamic> serviceDetails = _serviceRequest?['serviceDetails'] ?? {};
+    String customerComplaint = serviceDetails['description'] ?? 
+                              serviceDetails['comments'] ?? 
+                              'Service request';
+    
+    String srNumber = _serviceRequest?['serviceDetails']?['srId'] ?? 
+                     _serviceRequest?['srId'] ?? 
+                     widget.serviceRequestId;
+    
+    return Card(
+      color: Colors.white,
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Service Action',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StartServiceScreen(
+                        awgSerialNumber: _serviceRequest?['deviceId'] ?? '',
+                        srNumber: srNumber,
+                        customerComplaint: customerComplaint,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.build, color: Colors.white),
+                label: const Text(
+                  'Start Service',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors. black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 }
 
+
+                          

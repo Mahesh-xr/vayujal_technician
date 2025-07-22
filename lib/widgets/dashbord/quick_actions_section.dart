@@ -48,7 +48,7 @@ class QuickActionsSection extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (_) => const AllServiceRequestsPage(
-                  initialFilter: 'In Progress', // Set initial filter to In Progress
+                  initialFilter: 'Pending', // Set initial filter to In Progress
                 ),
               ),
             );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:vayujal_technician/navigation/NormalAppBar.dart';
 import 'dart:io';
 import 'package:video_player/video_player.dart';
 
@@ -76,18 +77,7 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Start Service',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
-        ),
-      ),
+      appBar: Normalappbar(title: 'Start Service'),
       body: SafeArea(
         child: Column( // Changed from SingleChildScrollView to Column
           children: [

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vayujal_technician/DatabaseActions/service_history_modals/service_history_modal.dart';
+import 'package:vayujal_technician/navigation/NormalAppBar.dart';
 import 'package:vayujal_technician/screens/service_details_screen.dart';
 import 'package:vayujal_technician/services/service_history_services.dart';
 import 'package:vayujal_technician/widgets/history/amc_history_card.dart';
@@ -58,12 +59,9 @@ class _ServiceHistoryScreenState extends State<ServiceHistoryScreen> with Single
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-        appBar: AppBar(
-        title: Text('History'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        centerTitle: true,
+        appBar: Normalappbar(
+        title: 'History'
+        
         
       ),      body: Column(
         children: [

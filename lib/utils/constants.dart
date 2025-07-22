@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppConstants {
   // Firebase Collection Names
-  static const String techniciansCollection = 'technicians';
+  static const String adminCollection = 'admins';
   static const String profileImagesPath = 'profile_images';
   
   // Colors

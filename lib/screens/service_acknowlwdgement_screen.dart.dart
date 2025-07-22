@@ -1,9 +1,9 @@
-// screens/service_acknowledgment_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vayujal_technician/models/service_acknowledgement_model.dart';
+import 'package:vayujal_technician/navigation/NormalAppBar.dart';
 import 'package:vayujal_technician/services/pdf_service.dart';
 
 class ServiceAcknowledgmentScreen extends StatefulWidget {
@@ -16,7 +16,9 @@ class ServiceAcknowledgmentScreen extends StatefulWidget {
 }
 
 class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScreen> {
-  ServiceAcknowledgmentModel? _serviceData;
+  Map<String, dynamic>? _serviceRequestData;
+  Map<String, dynamic>? _serviceHistoryData;
+  Map<String, dynamic>? _technicianData;
   bool _isLoading = true;
   bool _isGeneratingPdf = false;
   String? _errorMessage;
@@ -25,28 +27,46 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
   void initState() {
     super.initState();
     _loadServiceData();
-    print("navigation to resolution sucessfull");
+    print("Navigation to service acknowledgment successful");
   }
 
   Future<void> _loadServiceData() async {
     try {
-      // Load data from both collections
-      final serviceRequestDoc = await FirebaseFirestore.instance
+      // Load service request data
+      final serviceRequestQuery = await FirebaseFirestore.instance
           .collection('serviceRequests')
           .where('srId', isEqualTo: widget.srNumber)
           .get();
 
-      final serviceHistoryDoc = await FirebaseFirestore.instance
+      // Load service history data
+      final serviceHistoryQuery = await FirebaseFirestore.instance
           .collection('serviceHistory')
           .where('srNumber', isEqualTo: widget.srNumber)
           .get();
 
-      if (serviceRequestDoc.docs.isNotEmpty && serviceHistoryDoc.docs.isNotEmpty) {
+      if (serviceRequestQuery.docs.isNotEmpty && serviceHistoryQuery.docs.isNotEmpty) {
+        _serviceRequestData = serviceRequestQuery.docs.first.data();
+        _serviceHistoryData = serviceHistoryQuery.docs.first.data();
+
+        // Load technician data
+        final technicianId = _serviceHistoryData!['resolvedBy'] ?? _serviceHistoryData!['technician'];
+        if (technicianId != null) {
+          final technicianQuery = await FirebaseFirestore.instance
+              .collection('technicians')
+              .where('uid', isEqualTo: technicianId)
+              .get();
+          
+          if (technicianQuery.docs.isNotEmpty) {
+            _technicianData = technicianQuery.docs.first.data();
+          }
+        }
+
         setState(() {
-          _serviceData = ServiceAcknowledgmentModel.fromFirestore(
-            serviceRequestDoc.docs.first.data(),
-            serviceHistoryDoc.docs.first.data(),
-          );
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Service data not found';
           _isLoading = false;
         });
       }
@@ -58,132 +78,166 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
     }
   }
 
-  Future<void> _generateAndDownloadPdf() async {
-    if (_serviceData == null) return;
+ // Update the _generateAndDownloadPdf method in your ServiceAcknowledgmentScreen
 
-    setState(() {
-      _isGeneratingPdf = true;
-      _errorMessage = null;
+Future<void> _generateAndDownloadPdf() async {
+  if (_serviceRequestData == null || _serviceHistoryData == null) return;
+
+  setState(() {
+    _isGeneratingPdf = true;
+    _errorMessage = null;
+  });
+
+  try {
+    // Generate PDF using the updated method
+    final pdfFile = await PdfService.generateServiceAcknowledgmentPdf(
+      _serviceRequestData!,
+      _serviceHistoryData!,
+      _technicianData,
+    );
+    
+    // Share/Download PDF
+    await PdfService.shareAcknowledgmentPdf(pdfFile);
+    
+    // Update acknowledgment status in Firestore
+    await FirebaseFirestore.instance
+        .collection('serviceHistory')
+        .where('srNumber', isEqualTo: widget.srNumber)
+        .get()
+        .then((querySnapshot) {
+      for (var doc in querySnapshot.docs) {
+        doc.reference.update({
+          'acknowledgmentStatus': 'downloaded',
+          'acknowledgmentTimestamp': FieldValue.serverTimestamp(),
+        });
+      }
     });
 
-    try {
-      // Generate PDF
-      final pdfFile = await PdfService.generateServiceAcknowledgmentPdf(_serviceData!);
-      
-      // Share/Download PDF
-      await PdfService.shareAcknowledgmentPdf(pdfFile);
-      
-      // Update acknowledgment status in Firestore
-      await FirebaseFirestore.instance
-          .collection('serviceHistory')
-          .where('srNumber', isEqualTo: widget.srNumber)
-          .get()
-          .then((querySnapshot) {
-        for (var doc in querySnapshot.docs) {
-          doc.reference.update({
-            'acknowledgmentStatus': 'downloaded',
-            'acknowledgmentTimestamp': FieldValue.serverTimestamp(),
-          });
-        }
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Service acknowledgment PDF generated successfully!')),
-      );
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error generating PDF: $e';
-        _isGeneratingPdf = false;
-      });
-    } finally {
-      setState(() {
-        _isGeneratingPdf = false;
-      });
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Service acknowledgment PDF generated successfully!'),
+        backgroundColor: Colors.green[600],
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
+      ),
+    );
+  } catch (e) {
+    setState(() {
+      _errorMessage = 'Error generating PDF: $e';
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error generating PDF: $e'),
+        backgroundColor: Colors.red[600],
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  } finally {
+    setState(() {
+      _isGeneratingPdf = false;
+    });
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Service Acknowledgment'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
+      appBar: Normalappbar(
+        title: 'Service Acknowledgment'
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _serviceData == null
+          : _serviceRequestData == null || _serviceHistoryData == null
               ? Center(child: Text(_errorMessage ?? 'Service data not found'))
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Service Summary
+                      // Service Summary Section
                       _buildSection(
                         'Service Summary',
                         [
-                          _buildInfoRow('SR Number', _serviceData!.srNumber),
-                          _buildInfoRow('Service Date', _formatDate(_serviceData!.serviceDate)),
-                          _buildInfoRow('Next Service Date', _formatDate(_serviceData!.nextServiceDate)),
+                          _buildInfoRow('SR Number', widget.srNumber),
+                          _buildInfoRow('Service Date', _formatTimestamp(_serviceHistoryData!['timestamp'])),
+                          _buildInfoRow('Next Service Date', _formatTimestamp(_serviceHistoryData!['nextServiceDate'])),
+                          _buildInfoRow('Status', _serviceHistoryData!['status'] ?? 'Completed'),
+                          _buildInfoRow('Technician', _getTechnicianName()),
                         ],
                       ),
 
-                      // AWG Details
+                      // AWG/Device Details Section
                       _buildSection(
                         'AWG Details',
                         [
-                          _buildInfoRow('Model', _serviceData!.awgDetails.model),
-                          _buildInfoRow('Serial Number', _serviceData!.awgDetails.serialNumber),
+                          _buildInfoRow('Serial Number', _serviceHistoryData!['awgSerialNumber'] ?? 'N/A'),
+                          _buildInfoRow('Model', _serviceHistoryData!['model'] ?? 'N/A'),
                         ],
                       ),
 
-                      // Customer Details
+                      // Customer Details Section
                       _buildSection(
                         'Customer Details',
                         [
-                          _buildInfoRow('Name', _serviceData!.customerDetails.name),
-                          _buildInfoRow('Phone Number', _serviceData!.customerDetails.phone),
-                          _buildInfoRow('Company', _serviceData!.customerDetails.company),
-                          _buildInfoRow('Address', _serviceData!.customerDetails.fullAddress),
+                          _buildInfoRow('Name', _serviceRequestData!['serviceDetails']?['customerName'] ?? 'N/A'),
+                          _buildInfoRow('Phone Number', _serviceRequestData!['serviceDetails']?['customerPhoneNumber'] ?? 'N/A'),
+                          _buildInfoRow('Company', _serviceRequestData!['serviceDetails']?['companyName'] ?? 'N/A'),
+                          _buildInfoRow('Address', _getFullAddress()),
                         ],
                       ),
 
-                      // Parts Replaced
+                      // Service Details Section
                       _buildSection(
-                        'Parts Replaced',
+                        'Service Details',
                         [
-                          Text(_serviceData!.partsReplaced),
-                          const SizedBox(height: 8),
-                          const Text('Serial Number: if available'),
+                          _buildInfoRow('Issue Identification', _serviceHistoryData!['issueIdentification'] ?? 'N/A'),
+                          _buildInfoRow('Parts Replaced', _serviceHistoryData!['partsReplaced'] ?? 'N/A'),
+                          _buildInfoRow('Complaint Related To', _serviceHistoryData!['complaintRelatedTo'] ?? 'N/A'),
+                          _buildInfoRow('Customer Complaint', _serviceHistoryData!['customerComplaint'] ?? 'N/A'),
+                          _buildInfoRow('Solution Provided', _serviceHistoryData!['solutionProvided'] ?? 'N/A'),
+                          _buildInfoRow('Request Type', _serviceRequestData!['requestType'] ?? 'N/A'),
                         ],
                       ),
 
-                      // Service Images
-                      if (_serviceData!.images.issueImageUrl != null || 
-                          _serviceData!.images.resolutionImageUrl != null)
+                      // Service Images Section (Issue and Resolution only)
+                      if (_hasServiceImages())
                         _buildSection(
                           'Service Images',
                           [
-                            _buildImageRow('Issue Photo', _serviceData!.images.issueImageUrl),
-                            _buildImageRow('Resolution Photo', _serviceData!.images.resolutionImageUrl),
+                            _buildImageRow('Issue Photo', _getIssueImageUrl()),
+                            _buildImageRow('Resolution Photo', _serviceHistoryData!['resolutionImageUrl']),
                           ],
                         ),
 
-                      // Suggestions
+                      // Maintenance Suggestions Section
                       _buildSection(
-                        'Suggestions',
+                        'Maintenance Suggestions',
                         [
-                          _buildSuggestionItem('Keep Air Filter Clean', _serviceData!.suggestions.keepAirFilterClean),
-                          _buildSuggestionItem('Keep Away From Smells', _serviceData!.suggestions.keepAwayFromSmells),
-                          _buildSuggestionItem('Protect From Sun And Rain', _serviceData!.suggestions.protectFromSunAndRain),
-                          _buildSuggestionItem('Supply Stable Electricity', _serviceData!.suggestions.supplyStableElectricity),
-                          if (_serviceData!.customSuggestions.isNotEmpty)
+                          _buildSuggestionItem('Keep Air Filter Clean', _serviceHistoryData!['suggestions']?['keepAirFilterClean'] ?? false),
+                          _buildSuggestionItem('Keep Away From Smells', _serviceHistoryData!['suggestions']?['keepAwayFromSmells'] ?? false),
+                          _buildSuggestionItem('Protect From Sun And Rain', _serviceHistoryData!['suggestions']?['protectFromSunAndRain'] ?? false),
+                          _buildSuggestionItem('Supply Stable Electricity', _serviceHistoryData!['suggestions']?['supplyStableElectricity'] ?? false),
+                          if (_serviceHistoryData!['customSuggestions'] != null && _serviceHistoryData!['customSuggestions'].toString().isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
-                              child: Text('Additional: ${_serviceData!.customSuggestions}'),
+                              child: Text('Additional Suggestions: ${_serviceHistoryData!['customSuggestions']}'),
                             ),
+                        ],
+                      ),
+
+                      // Service Timeline Section
+                      _buildSection(
+                        'Service Timeline',
+                        [
+                          _buildInfoRow('Request Created', _formatTimestamp(_serviceRequestData!['createddate'])),
+                          _buildInfoRow('Service Delayed At', _formatTimestamp(_serviceRequestData!['delayedAt'])),
+                          _buildInfoRow('Resolution Time', _formatTimestamp(_serviceHistoryData!['resolutionTimestamp'])),
+                          if (_serviceHistoryData!['acknowledgmentTimestamp'] != null)
+                            _buildInfoRow('Acknowledgment Time', _formatTimestamp(_serviceHistoryData!['acknowledgmentTimestamp'])),
                         ],
                       ),
 
@@ -208,7 +262,7 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: Colors.blue[50],
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(8),
                 topRight: Radius.circular(8),
@@ -216,9 +270,19 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
             ),
             child: Row(
               children: [
+                Icon(
+                  _getSectionIcon(title),
+                  color: Colors.blue[600],
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18, 
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[800],
+                  ),
                 ),
               ],
             ),
@@ -235,6 +299,29 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
     );
   }
 
+  IconData _getSectionIcon(String title) {
+    switch (title) {
+      case 'Service Summary':
+        return Icons.summarize;
+      case 'AWG Details':
+        return Icons.devices;
+      case 'Customer Details':
+        return Icons.person;
+      case 'Service Details':
+        return Icons.build;
+      case 'Service Images':
+        return Icons.photo_library;
+      case 'Maintenance Suggestions':
+        return Icons.lightbulb;
+      case 'Service Timeline':
+        return Icons.timeline;
+      case 'Download Service Report':
+        return Icons.download;
+      default:
+        return Icons.info;
+    }
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -242,20 +329,30 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
+            width: 140,
             child: Text(
               '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
             ),
           ),
-          Expanded(child: Text(value)),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.black54,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildImageRow(String label, String? imageUrl) {
-    if (imageUrl == null) return const SizedBox.shrink();
+    if (imageUrl == null || imageUrl.isEmpty) return const SizedBox.shrink();
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -264,18 +361,37 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
         children: [
           Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: CachedNetworkImage(
               imageUrl: imageUrl,
-              height: 150,
+              height: 200,
               width: double.infinity,
               fit: BoxFit.cover,
-              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
+              placeholder: (context, url) => Container(
+                height: 200,
+                color: Colors.grey[200],
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (context, url, error) => Container(
+                height: 200,
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error, color: Colors.red),
+                      Text('Failed to load image'),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -285,7 +401,7 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
 
   Widget _buildSuggestionItem(String text, bool isSelected) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
           Icon(
@@ -294,7 +410,15 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
             color: isSelected ? Colors.green : Colors.grey,
           ),
           const SizedBox(width: 8),
-          Text(text),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: isSelected ? Colors.green[700] : Colors.grey[600],
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -313,17 +437,27 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: Colors.green[50],
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(8),
                 topRight: Radius.circular(8),
               ),
             ),
-            child: const Row(
+            child: Row(
               children: [
+                Icon(
+                  Icons.download,
+                  color: Colors.green[600],
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
                 Text(
                   'Download Service Report',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18, 
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green[800],
+                  ),
                 ),
               ],
             ),
@@ -377,9 +511,12 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
                         : const Icon(Icons.download),
                     label: Text(_isGeneratingPdf ? 'Generating PDF...' : 'Download PDF Report'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
+                      backgroundColor: Colors.green[600],
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
@@ -391,7 +528,56 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+  // Helper methods
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+    
+    DateTime date;
+    if (timestamp is Timestamp) {
+      date = timestamp.toDate();
+    } else if (timestamp is String) {
+      try {
+        date = DateTime.parse(timestamp);
+      } catch (e) {
+        return timestamp;
+      }
+    } else {
+      return 'N/A';
+    }
+    
+    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _getTechnicianName() {
+    if (_technicianData != null) {
+      return _technicianData!['fullName'] ?? _technicianData!['name'] ?? 'N/A';
+    }
+    return _serviceHistoryData!['technician'] ?? 'N/A';
+  }
+
+  String _getFullAddress() {
+    final serviceDetails = _serviceRequestData!['serviceDetails'];
+    if (serviceDetails == null) return 'N/A';
+    
+    final List<String> addressParts = [];
+    
+    if (serviceDetails['address'] != null) addressParts.add(serviceDetails['address']);
+    if (serviceDetails['city'] != null) addressParts.add(serviceDetails['city']);
+    if (serviceDetails['state'] != null) addressParts.add(serviceDetails['state']);
+    if (serviceDetails['pincode'] != null) addressParts.add(serviceDetails['pincode']);
+    
+    return addressParts.isNotEmpty ? addressParts.join(', ') : 'N/A';
+  }
+
+  bool _hasServiceImages() {
+    return _getIssueImageUrl() != null || _serviceHistoryData!['resolutionImageUrl'] != null;
+  }
+
+  String? _getIssueImageUrl() {
+    final issueImageUrls = _serviceHistoryData!['issueImageUrls'];
+    if (issueImageUrls != null && issueImageUrls is List && issueImageUrls.isNotEmpty) {
+      return issueImageUrls[0];
+    }
+    return null;
   }
 }

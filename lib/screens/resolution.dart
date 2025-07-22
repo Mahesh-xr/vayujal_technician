@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:vayujal_technician/navigation/NormalAppBar.dart';
 import 'package:vayujal_technician/screens/dbforresolution.dart';
 import 'package:vayujal_technician/screens/service_acknowlwdgement_screen.dart.dart';
 import 'package:video_player/video_player.dart';
@@ -564,7 +565,6 @@ class _ResolutionPageState extends State<ResolutionPage> {
         status: _selectedStatus,
         issueOthers: _issueOthersController.text,
         partsOthers: _partsOthersController.text,
-        resolutionImage: null,
         serialNumber: '',
       );
 
@@ -600,11 +600,9 @@ class _ResolutionPageState extends State<ResolutionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Resolution'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
+      appBar: Normalappbar(
+        title:'Resolution'
+        
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())

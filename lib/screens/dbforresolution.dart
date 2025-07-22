@@ -9,7 +9,49 @@ class ResolutionService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Upload resolution image to Firebase Storage
+  // Upload multiple resolution images to Firebase Storage
+  Future<List<String>> uploadResolutionImages(String srNumber, List<File> imageFiles) async {
+    try {
+      List<String> downloadUrls = [];
+      
+      for (int i = 0; i < imageFiles.length; i++) {
+        // Create reference to storage location with index
+        final storageRef = _storage.ref().child('service_requests/$srNumber/resolution_image_${i + 1}.jpg');
+        
+        // Upload file
+        final uploadTask = storageRef.putFile(imageFiles[i]);
+        final snapshot = await uploadTask;
+        
+        // Get download URL
+        final downloadUrl = await snapshot.ref.getDownloadURL();
+        downloadUrls.add(downloadUrl);
+      }
+      
+      return downloadUrls;
+    } catch (e) {
+      throw Exception('Failed to upload resolution images: $e');
+    }
+  }
+
+  // Upload resolution video to Firebase Storage
+  Future<String?> uploadResolutionVideo(String srNumber, File videoFile) async {
+    try {
+      // Create reference to storage location
+      final storageRef = _storage.ref().child('service_requests/$srNumber/resolution_video.mp4');
+      
+      // Upload file
+      final uploadTask = storageRef.putFile(videoFile);
+      final snapshot = await uploadTask;
+      
+      // Get download URL
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      return downloadUrl;
+    } catch (e) {
+      throw Exception('Failed to upload resolution video: $e');
+    }
+  }
+
+  // Upload single resolution image (keeping for backward compatibility)
   Future<String> uploadResolutionImage(String srNumber, File imageFile) async {
     try {
       // Create reference to storage location
@@ -35,11 +77,14 @@ class ResolutionService {
     required String issueType,
     required String solutionProvided,
     required String partsReplaced,
-    required String resolutionImageUrl,
+    required List<String> resolutionImageUrls,
+    required String? resolutionVideoUrl,
     required DateTime nextServiceDate,
     required Map<String, bool> suggestions,
     required String customSuggestions,
     required String status,
+    required String issueOthers,
+    required String partsOthers,
   }) async {
     try {
       // Get current user (technician)
@@ -60,21 +105,33 @@ class ResolutionService {
 
       final docId = querySnapshot.docs.first.id;
 
-      // Update the document with resolution data
-      await _firestore.collection('serviceHistory').doc(docId).update({
+      // Prepare update data
+      Map<String, dynamic> updateData = {
         'serialNumber': serialNumber,
         'issueIdentification': issueIdentification,
         'issueType': issueType,
         'solutionProvided': solutionProvided,
         'partsReplaced': partsReplaced,
-        'resolutionImageUrl': resolutionImageUrl,
+        'resolutionImageUrls': resolutionImageUrls, // Multiple images
         'nextServiceDate': Timestamp.fromDate(nextServiceDate),
         'suggestions': suggestions,
         'customSuggestions': customSuggestions,
         'status': status,
         'resolutionTimestamp': FieldValue.serverTimestamp(),
         'resolvedBy': currentUser.uid,
-      });
+        'issueOthers': issueOthers,
+        'partsOthers': partsOthers,
+      };
+
+      // Add video URL if available
+      if (resolutionVideoUrl != null && resolutionVideoUrl.isNotEmpty) {
+        updateData['resolutionVideoUrl'] = resolutionVideoUrl;
+      }
+
+      // Update the serviceHistory document
+      await _firestore.collection('serviceHistory').doc(docId).update(updateData);
+      
+      // Also update the serviceRequests document
       await _firestore.collection('serviceRequests').doc(srNumber).update({
         'status': status,
         'resolvedBy': currentUser.uid,
@@ -85,7 +142,7 @@ class ResolutionService {
     }
   }
 
-  // Complete resolution process (upload image + update database)
+  // Complete resolution process (upload images/video + update database)
   Future<void> completeResolution({
     required String srNumber,
     required String serialNumber,
@@ -93,18 +150,27 @@ class ResolutionService {
     required String issueType,
     required String solutionProvided,
     required String partsReplaced,
-    required File? resolutionImage,
     required DateTime nextServiceDate,
     required Map<String, bool> suggestions,
     required String customSuggestions,
-    required String status, required List<File> resolutionImages, File? resolutionVideo, required String issueOthers, required String partsOthers,
+    required String status,
+    required List<File> resolutionImages,
+    File? resolutionVideo,
+    required String issueOthers,
+    required String partsOthers,
   }) async {
     try {
-      String resolutionImageUrl = '';
+      List<String> resolutionImageUrls = [];
+      String? resolutionVideoUrl;
       
-      // Upload resolution image if provided
-      if (resolutionImage != null) {
-        resolutionImageUrl = await uploadResolutionImage(srNumber, resolutionImage);
+      // Upload resolution images if provided
+      if (resolutionImages.isNotEmpty) {
+        resolutionImageUrls = await uploadResolutionImages(srNumber, resolutionImages);
+      }
+
+      // Upload resolution video if provided
+      if (resolutionVideo != null) {
+        resolutionVideoUrl = await uploadResolutionVideo(srNumber, resolutionVideo);
       }
 
       // Update serviceHistory document
@@ -115,11 +181,14 @@ class ResolutionService {
         issueType: issueType,
         solutionProvided: solutionProvided,
         partsReplaced: partsReplaced,
-        resolutionImageUrl: resolutionImageUrl,
+        resolutionImageUrls: resolutionImageUrls,
+        resolutionVideoUrl: resolutionVideoUrl,
         nextServiceDate: nextServiceDate,
         suggestions: suggestions,
         customSuggestions: customSuggestions,
         status: status,
+        issueOthers: issueOthers,
+        partsOthers: partsOthers,
       );
     } catch (e) {
       rethrow;

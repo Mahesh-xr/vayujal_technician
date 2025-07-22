@@ -4,7 +4,7 @@ import 'package:vayujal_technician/firebase_options.dart';
 import 'package:vayujal_technician/screens/all_service_request_page.dart';
 import 'package:vayujal_technician/screens/dashboard_screen.dart';
 import 'package:vayujal_technician/screens/login_screen.dart';
-import 'utils/constants.dart';
+import 'package:vayujal_technician/utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,7 +69,7 @@ class MyApp extends StatelessWidget {
         '/history': (context) => const AllServiceRequestsPage(
               initialFilter: 'Completed',
             ),
-            '/login':(context) => const LoginScreen()
+        '/login':(context) => const LoginScreen()
       },
     );
   }

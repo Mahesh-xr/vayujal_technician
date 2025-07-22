@@ -3,7 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vayujal_technician/DatabaseActions/adminAction.dart';
 import 'package:vayujal_technician/models/technicaian_profile.dart';
+import 'package:vayujal_technician/navigation/NormalAppBar.dart';
 import 'package:vayujal_technician/navigation/bottom_navigation.dart';
+import 'package:vayujal_technician/navigation/custom_app_bar.dart';
 import 'package:vayujal_technician/pages/service_details_page.dart';
 import 'notification.dart';
 
@@ -282,7 +284,7 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
           content: Row(
             children: [
               CircularProgressIndicator(),
-              SizedBox(width: 20),
+              SizedBox(width: 10),
               Text("Checking expired requests..."),
             ],
           ),
@@ -368,12 +370,8 @@ class _AllServiceRequestsPageState extends State<AllServiceRequestsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text('My Service Requests'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        centerTitle: true,
+      appBar: Normalappbar(
+        title: 'My Service Requests',
       ),
       body: Column(
         children: [

@@ -795,6 +795,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
+import 'package:vayujal_technician/navigation/NormalAppBar.dart';
+
 class AdminProfileSetupPage extends StatefulWidget {
   @override
   _AdminProfileSetupPageState createState() => _AdminProfileSetupPageState();
@@ -1216,12 +1218,8 @@ class _AdminProfileSetupPageState extends State<AdminProfileSetupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text('Technician Profile'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        centerTitle: true,
+      appBar: Normalappbar(
+        title: 'Technician Profile'
       ),
       body: _isLoadingProfile
           ? Center(child: CircularProgressIndicator())

@@ -7,10 +7,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:vayujal_technician/models/service_acknowledgement_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PdfService {
   static Future<File> generateServiceAcknowledgmentPdf(
-    ServiceAcknowledgmentModel serviceData,
+    Map<String, dynamic> serviceRequestData,
+    Map<String, dynamic> serviceHistoryData,
+    Map<String, dynamic>? technicianData,
   ) async {
     final pdf = pw.Document();
 
@@ -19,15 +22,18 @@ class PdfService {
     pw.ImageProvider? resolutionImage;
 
     try {
-      if (serviceData.images.issueImageUrl != null) {
-        final issueResponse = await http.get(Uri.parse(serviceData.images.issueImageUrl!));
+      // Get issue image URL
+      final issueImageUrls = serviceHistoryData['issueImageUrls'];
+      if (issueImageUrls != null && issueImageUrls is List && issueImageUrls.isNotEmpty) {
+        final issueResponse = await http.get(Uri.parse(issueImageUrls[0]));
         if (issueResponse.statusCode == 200) {
           issueImage = pw.MemoryImage(issueResponse.bodyBytes);
         }
       }
       
-      if (serviceData.images.resolutionImageUrl != null) {
-        final resolutionResponse = await http.get(Uri.parse(serviceData.images.resolutionImageUrl!));
+      // Get resolution image URL
+      if (serviceHistoryData['resolutionImageUrl'] != null) {
+        final resolutionResponse = await http.get(Uri.parse(serviceHistoryData['resolutionImageUrl']));
         if (resolutionResponse.statusCode == 200) {
           resolutionImage = pw.MemoryImage(resolutionResponse.bodyBytes);
         }
@@ -43,86 +49,77 @@ class PdfService {
         build: (pw.Context context) {
           return [
             // Header
-            pw.Container(
-              padding: const pw.EdgeInsets.all(20),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey300),
-                borderRadius: pw.BorderRadius.circular(10),
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'Service Acknowledgment',
-                        style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-                      ),
-                      pw.SizedBox(height: 10),
-                      pw.Text('VAYUJAL', style: pw.TextStyle(fontSize: 18, color: PdfColors.blue)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
+            _buildHeader(serviceHistoryData['srNumber'] ?? 'N/A'),
+            
             pw.SizedBox(height: 20),
 
             // Service Summary
             _buildSection('Service Summary', [
-              _buildRow('SR Number', serviceData.srNumber),
-              _buildRow('Service Date', _formatDate(serviceData.serviceDate)),
-              _buildRow('Next Service Date', _formatDate(serviceData.nextServiceDate)),
+              _buildRow('SR Number', serviceHistoryData['srNumber'] ?? 'N/A'),
+              _buildRow('Service Date', _formatTimestamp(serviceHistoryData['timestamp'])),
+              _buildRow('Next Service Date', _formatTimestamp(serviceHistoryData['nextServiceDate'])),
+              _buildRow('Status', serviceHistoryData['status'] ?? 'Completed'),
+              _buildRow('Technician', _getTechnicianName(serviceHistoryData, technicianData)),
             ]),
 
             // AWG Details
             _buildSection('AWG Details', [
-              _buildRow('Model', serviceData.awgDetails.model),
-              _buildRow('Serial Number', serviceData.awgDetails.serialNumber),
+              _buildRow('Serial Number', serviceHistoryData['awgSerialNumber'] ?? 'N/A'),
+              _buildRow('Model', serviceHistoryData['model'] ?? 'N/A'),
             ]),
 
             // Customer Details
             _buildSection('Customer Details', [
-              _buildRow('Name', serviceData.customerDetails.name),
-              _buildRow('Phone Number', serviceData.customerDetails.phone),
-              _buildRow('Company', serviceData.customerDetails.company),
-              _buildRow('Address', serviceData.customerDetails.fullAddress),
-              _buildRow('City', serviceData.customerDetails.city),
-              _buildRow('State', serviceData.customerDetails.state),
+              _buildRow('Name', serviceRequestData['serviceDetails']?['customerName'] ?? 'N/A'),
+              _buildRow('Phone Number', serviceRequestData['serviceDetails']?['customerPhoneNumber'] ?? 'N/A'),
+              _buildRow('Company', serviceRequestData['serviceDetails']?['companyName'] ?? 'N/A'),
+              _buildRow('Address', _getFullAddress(serviceRequestData)),
             ]),
 
             // Service Details
             _buildSection('Service Details', [
-              _buildRow('Parts Replaced', serviceData.partsReplaced),
-              _buildRow('Issue Type', serviceData.issueType),
-              _buildRow('Complaint Related To', serviceData.complaintRelatedTo),
-              _buildRow('Solution Provided', serviceData.solutionProvided),
+              _buildRow('Issue Identification', serviceHistoryData['issueIdentification'] ?? 'N/A'),
+              _buildRow('Parts Replaced', serviceHistoryData['partsReplaced'] ?? 'N/A'),
+              _buildRow('Complaint Related To', serviceHistoryData['complaintRelatedTo'] ?? 'N/A'),
+              _buildRow('Customer Complaint', serviceHistoryData['customerComplaint'] ?? 'N/A'),
+              _buildRow('Solution Provided', serviceHistoryData['solutionProvided'] ?? 'N/A'),
+              _buildRow('Request Type', serviceRequestData['requestType'] ?? 'N/A'),
             ]),
 
-            // Suggestions
-            _buildSection('Suggestions', [
+            // Maintenance Suggestions
+            _buildSection('Maintenance Suggestions', [
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  if (serviceData.suggestions.keepAirFilterClean)
-                    _buildCheckItem('Keep Air Filter Clean'),
-                  if (serviceData.suggestions.keepAwayFromSmells)
-                    _buildCheckItem('Keep Away From Smells'),
-                  if (serviceData.suggestions.protectFromSunAndRain)
-                    _buildCheckItem('Protect From Sun And Rain'),
-                  if (serviceData.suggestions.supplyStableElectricity)
-                    _buildCheckItem('Supply Stable Electricity'),
-                  if (serviceData.customSuggestions.isNotEmpty)
+                  _buildCheckItem('Keep Air Filter Clean', 
+                    serviceHistoryData['suggestions']?['keepAirFilterClean'] ?? false),
+                  _buildCheckItem('Keep Away From Smells', 
+                    serviceHistoryData['suggestions']?['keepAwayFromSmells'] ?? false),
+                  _buildCheckItem('Protect From Sun And Rain', 
+                    serviceHistoryData['suggestions']?['protectFromSunAndRain'] ?? false),
+                  _buildCheckItem('Supply Stable Electricity', 
+                    serviceHistoryData['suggestions']?['supplyStableElectricity'] ?? false),
+                  
+                  if (serviceHistoryData['customSuggestions'] != null && 
+                      serviceHistoryData['customSuggestions'].toString().isNotEmpty)
                     pw.Padding(
                       padding: const pw.EdgeInsets.only(top: 10),
                       child: pw.Text(
-                        'Additional Suggestions: ${serviceData.customSuggestions}',
+                        'Additional Suggestions: ${serviceHistoryData['customSuggestions']}',
                         style: pw.TextStyle(fontSize: 12),
                       ),
                     ),
                 ],
               ),
+            ]),
+
+            // Service Timeline
+            _buildSection('Service Timeline', [
+              _buildRow('Request Created', _formatTimestamp(serviceRequestData['createddate'])),
+              _buildRow('Service Delayed At', _formatTimestamp(serviceRequestData['delayedAt'])),
+              _buildRow('Resolution Time', _formatTimestamp(serviceHistoryData['resolutionTimestamp'])),
+              if (serviceHistoryData['acknowledgmentTimestamp'] != null)
+                _buildRow('Acknowledgment Time', _formatTimestamp(serviceHistoryData['acknowledgmentTimestamp'])),
             ]),
 
             // Images Section
@@ -133,6 +130,7 @@ class PdfService {
               _buildSection('Issue Photo', [
                 pw.Container(
                   height: 200,
+                  width: double.infinity,
                   child: pw.Image(issueImage, fit: pw.BoxFit.contain),
                 ),
               ]),
@@ -141,48 +139,89 @@ class PdfService {
               _buildSection('Resolution Photo', [
                 pw.Container(
                   height: 200,
+                  width: double.infinity,
                   child: pw.Image(resolutionImage, fit: pw.BoxFit.contain),
                 ),
               ]),
 
             // Footer
-            pw.SizedBox(height: 30),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(15),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: pw.BorderRadius.circular(8),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    'Customer Verification Completed',
-                    style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-                  ),
-                  pw.SizedBox(height: 5),
-                  pw.Text(
-                    'This document serves as acknowledgment of the service provided.',
-                    style: pw.TextStyle(fontSize: 12),
-                  ),
-                  pw.SizedBox(height: 5),
-                  pw.Text(
-                    'Generated on: ${_formatDate(DateTime.now())}',
-                    style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
-                  ),
-                ],
-              ),
-            ),
+            _buildFooter(),
           ];
         },
       ),
     );
 
     final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/service_acknowledgment_${serviceData.srNumber}.pdf');
+    final file = File('${directory.path}/service_acknowledgment_${serviceHistoryData['srNumber'] ?? 'unknown'}.pdf');
     await file.writeAsBytes(await pdf.save());
 
     return file;
+  }
+
+  static pw.Widget _buildHeader(String srNumber) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(20),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.blue50,
+        border: pw.Border.all(color: PdfColors.blue300),
+        borderRadius: pw.BorderRadius.circular(10),
+      ),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'Service Acknowledgment Report',
+                style: pw.TextStyle(
+                  fontSize: 24, 
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.blue800,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                'VAYUJAL TECHNICIAN SERVICES',
+                style: pw.TextStyle(
+                  fontSize: 16, 
+                  color: PdfColors.blue600,
+                  fontWeight: pw.FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.white,
+              borderRadius: pw.BorderRadius.circular(8),
+              border: pw.Border.all(color: PdfColors.blue300),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text(
+                  'SR Number',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey600,
+                  ),
+                ),
+                pw.Text(
+                  srNumber,
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blue800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   static pw.Widget _buildSection(String title, List<pw.Widget> children) {
@@ -191,11 +230,22 @@ class PdfService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(
-            title,
-            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.blue100,
+              borderRadius: pw.BorderRadius.circular(6),
+            ),
+            child: pw.Text(
+              title,
+              style: pw.TextStyle(
+                fontSize: 16, 
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.blue800,
+              ),
+            ),
           ),
-          pw.SizedBox(height: 10),
+          pw.SizedBox(height: 8),
           pw.Container(
             padding: const pw.EdgeInsets.all(15),
             decoration: pw.BoxDecoration(
@@ -219,45 +269,181 @@ class PdfService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.SizedBox(
-            width: 120,
+            width: 140,
             child: pw.Text(
               '$label:',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
+              style: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold, 
+                fontSize: 12,
+                color: PdfColors.black,
+              ),
             ),
           ),
           pw.Expanded(
-            child: pw.Text(value, style: pw.TextStyle(fontSize: 12)),
+            child: pw.Text(
+              value,
+              style: pw.TextStyle(
+                fontSize: 12,
+                color: PdfColors.grey700,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  static pw.Widget _buildCheckItem(String text) {
+  static pw.Widget _buildCheckItem(String text, bool isChecked) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 5),
+      padding: const pw.EdgeInsets.only(bottom: 6),
       child: pw.Row(
         children: [
           pw.Container(
-            width: 12,
-            height: 12,
+            width: 14,
+            height: 14,
             decoration: pw.BoxDecoration(
-              border: pw.Border.all(color: PdfColors.green),
-              borderRadius: pw.BorderRadius.circular(2),
+              color: isChecked ? PdfColors.green : PdfColors.white,
+              border: pw.Border.all(
+                color: isChecked ? PdfColors.green : PdfColors.grey400,
+                width: 1.5,
+              ),
+              borderRadius: pw.BorderRadius.circular(3),
             ),
-            child: pw.Center(
-              child: pw.Text('✓', style: pw.TextStyle(fontSize: 8, color: PdfColors.green)),
-            ),
+            child: isChecked 
+              ? pw.Center(
+                  child: pw.Text(
+                    '✓', 
+                    style: pw.TextStyle(
+                      fontSize: 10, 
+                      color: PdfColors.white,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                )
+              : null,
           ),
           pw.SizedBox(width: 8),
-          pw.Text(text, style: pw.TextStyle(fontSize: 12)),
+          pw.Text(
+            text, 
+            style: pw.TextStyle(
+              fontSize: 12,
+              color: isChecked ? PdfColors.green700 : PdfColors.grey600,
+              fontWeight: isChecked ? pw.FontWeight.normal : pw.FontWeight.normal,
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  static pw.Widget _buildFooter() {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(top: 20),
+      padding: const pw.EdgeInsets.all(20),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.green50,
+        border: pw.Border.all(color: PdfColors.green300),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            children: [
+              pw.Icon(
+                pw.IconData(0xe876), // checkmark icon
+                color: PdfColors.green600,
+                size: 20,
+              ),
+              pw.SizedBox(width: 8),
+              pw.Text(
+                'Service Acknowledgment Completed',
+                style: pw.TextStyle(
+                  fontSize: 18, 
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.green800,
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            'This document serves as official acknowledgment of the service provided by VAYUJAL technician. The customer has verified the completion of service and accepts the work performed.',
+            style: pw.TextStyle(
+              fontSize: 12,
+              color: PdfColors.green700,
+            ),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'Report generated on: ${_formatDate(DateTime.now())}',
+                style: pw.TextStyle(
+                  fontSize: 10, 
+                  color: PdfColors.grey600,
+                  fontStyle: pw.FontStyle.italic,
+                ),
+              ),
+              pw.Text(
+                'VAYUJAL Services',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.blue600,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper methods
+  static String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+    
+    DateTime date;
+    if (timestamp is Timestamp) {
+      date = timestamp.toDate();
+    } else if (timestamp is String) {
+      try {
+        date = DateTime.parse(timestamp);
+      } catch (e) {
+        return timestamp;
+      }
+    } else {
+      return 'N/A';
+    }
+    
+    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   static String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  static String _getTechnicianName(Map<String, dynamic> serviceHistoryData, Map<String, dynamic>? technicianData) {
+    if (technicianData != null) {
+      return technicianData['fullName'] ?? technicianData['name'] ?? 'N/A';
+    }
+    return serviceHistoryData['technician'] ?? 'N/A';
+  }
+
+  static String _getFullAddress(Map<String, dynamic> serviceRequestData) {
+    final serviceDetails = serviceRequestData['serviceDetails'];
+    if (serviceDetails == null) return 'N/A';
+    
+    final List<String> addressParts = [];
+    
+    if (serviceDetails['address'] != null) addressParts.add(serviceDetails['address']);
+    if (serviceDetails['city'] != null) addressParts.add(serviceDetails['city']);
+    if (serviceDetails['state'] != null) addressParts.add(serviceDetails['state']);
+    if (serviceDetails['pincode'] != null) addressParts.add(serviceDetails['pincode']);
+    
+    return addressParts.isNotEmpty ? addressParts.join(', ') : 'N/A';
   }
 
   static Future<void> shareAcknowledgmentPdf(File pdfFile) async {

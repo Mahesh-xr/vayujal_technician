@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:vayujal_technician/navigation/NormalAppBar.dart';
 import 'dart:convert';
 
 import 'package:vayujal_technician/screens/dashboard_screen.dart';
@@ -132,16 +133,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: const BackButton(color: Colors.black),
-        title: const Text(
-          'OTP Verification',
-          style: TextStyle(color: Colors.black),
-        ),
-      ),
+     return Scaffold(
+      appBar: Normalappbar(title:'Login'),
+
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
