@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:vayujal_technician/models/service_acknowledgement_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class PdfService {
   static Future<File> generateServiceAcknowledgmentPdf(
@@ -65,25 +66,25 @@ class PdfService {
             // AWG Details
             _buildSection('AWG Details', [
               _buildRow('Serial Number', serviceHistoryData['awgSerialNumber'] ?? 'N/A'),
-              _buildRow('Model', serviceHistoryData['model'] ?? 'N/A'),
+              _buildRow('Model', serviceRequestData['equipmentDetails']?['model'] ?? 'N/A'),
             ]),
 
             // Customer Details
             _buildSection('Customer Details', [
-              _buildRow('Name', serviceRequestData['serviceDetails']?['customerName'] ?? 'N/A'),
-              _buildRow('Phone Number', serviceRequestData['serviceDetails']?['customerPhoneNumber'] ?? 'N/A'),
-              _buildRow('Company', serviceRequestData['serviceDetails']?['companyName'] ?? 'N/A'),
+              _buildRow('Name', serviceRequestData['customerDetails']?['name'] ?? 'N/A'),
+              _buildRow('Phone Number', serviceRequestData['customerDetails']?['phone'] ?? 'N/A'),
+              _buildRow('Company', serviceRequestData['customerDetails']?['company'] ?? 'N/A'),
               _buildRow('Address', _getFullAddress(serviceRequestData)),
             ]),
 
             // Service Details
             _buildSection('Service Details', [
-              _buildRow('Issue Identification', serviceHistoryData['issueIdentification'] ?? 'N/A'),
-              _buildRow('Parts Replaced', serviceHistoryData['partsReplaced'] ?? 'N/A'),
-              _buildRow('Complaint Related To', serviceHistoryData['complaintRelatedTo'] ?? 'N/A'),
               _buildRow('Customer Complaint', serviceHistoryData['customerComplaint'] ?? 'N/A'),
               _buildRow('Solution Provided', serviceHistoryData['solutionProvided'] ?? 'N/A'),
-              _buildRow('Request Type', serviceRequestData['requestType'] ?? 'N/A'),
+              _buildRow('Issue Identification', serviceHistoryData['issueIdentification'] ?? 'N/A'),
+              _buildRow('Complaint Related To', serviceHistoryData['complaintRelatedTo'] ?? 'N/A'),
+              _buildRow('Complaint Type', serviceRequestData['serviceDetails']?['requestType'] ?? 'N/A'),
+              _buildRow('Parts Replaced', serviceHistoryData['partsReplaced'] ?? 'N/A'),
             ]),
 
             // Maintenance Suggestions
@@ -105,7 +106,7 @@ class PdfService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.only(top: 10),
                       child: pw.Text(
-                        'Additional Suggestions: ${serviceHistoryData['customSuggestions']}',
+                        'Custom Suggestions: ${serviceHistoryData['customSuggestions']}',
                         style: pw.TextStyle(fontSize: 12),
                       ),
                     ),
@@ -115,8 +116,7 @@ class PdfService {
 
             // Service Timeline
             _buildSection('Service Timeline', [
-              _buildRow('Request Created', _formatTimestamp(serviceRequestData['createddate'])),
-              _buildRow('Service Delayed At', _formatTimestamp(serviceRequestData['delayedAt'])),
+              _buildRow('Request Created', _formatTimestamp(serviceRequestData['createdAt'])),
               _buildRow('Resolution Time', _formatTimestamp(serviceHistoryData['resolutionTimestamp'])),
               if (serviceHistoryData['acknowledgmentTimestamp'] != null)
                 _buildRow('Acknowledgment Time', _formatTimestamp(serviceHistoryData['acknowledgmentTimestamp'])),
@@ -401,23 +401,39 @@ class PdfService {
     );
   }
 
-  // Helper methods
+  // Helper methods - Updated to match acknowledgment screen format
   static String _formatTimestamp(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-    
-    DateTime date;
+
+    DateTime? date;
+
+    // Case 1: Firebase Timestamp
     if (timestamp is Timestamp) {
       date = timestamp.toDate();
-    } else if (timestamp is String) {
+    } 
+    // Case 2: ISO-8601 String
+    else if (timestamp is String) {
       try {
         date = DateTime.parse(timestamp);
       } catch (e) {
-        return timestamp;
+        // Case 3: Try custom string like "July 22, 2025 at 11:06:43 AM UTC+5:30"
+        try {
+          // Normalize UTC+5:30 to UTC+0530 for parsing
+          String cleaned = timestamp.replaceAll('UTC+5:30', 'UTC+0530');
+
+          // Optional: remove any unusual unicode spaces (like non-breaking space)
+          cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ');
+
+          final customFormat = DateFormat("MMMM d, y 'at' hh:mm:ss a 'UTC'Z");
+          date = customFormat.parse(cleaned);
+        } catch (e) {
+          return timestamp; // Still can't parse
+        }
       }
     } else {
       return 'N/A';
     }
-    
+
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
@@ -433,15 +449,14 @@ class PdfService {
   }
 
   static String _getFullAddress(Map<String, dynamic> serviceRequestData) {
-    final serviceDetails = serviceRequestData['serviceDetails'];
+    final serviceDetails = serviceRequestData['customerDetails']?['address'];
     if (serviceDetails == null) return 'N/A';
     
     final List<String> addressParts = [];
     
-    if (serviceDetails['address'] != null) addressParts.add(serviceDetails['address']);
+    if (serviceDetails['fullAddress'] != null) addressParts.add(serviceDetails['fullAddress']);
     if (serviceDetails['city'] != null) addressParts.add(serviceDetails['city']);
     if (serviceDetails['state'] != null) addressParts.add(serviceDetails['state']);
-    if (serviceDetails['pincode'] != null) addressParts.add(serviceDetails['pincode']);
     
     return addressParts.isNotEmpty ? addressParts.join(', ') : 'N/A';
   }

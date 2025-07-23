@@ -1,10 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:vayujal_technician/models/service_acknowledgement_model.dart';
 import 'package:vayujal_technician/navigation/NormalAppBar.dart';
+import 'package:vayujal_technician/services/otp_services.dart';
 import 'package:vayujal_technician/services/pdf_service.dart';
+import 'package:intl/intl.dart';
 
 class ServiceAcknowledgmentScreen extends StatefulWidget {
   final String srNumber;
@@ -35,18 +34,18 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
       // Load service request data
       final serviceRequestQuery = await FirebaseFirestore.instance
           .collection('serviceRequests')
-          .where('srId', isEqualTo: widget.srNumber)
+          .doc(widget.srNumber)
           .get();
 
       // Load service history data
       final serviceHistoryQuery = await FirebaseFirestore.instance
           .collection('serviceHistory')
-          .where('srNumber', isEqualTo: widget.srNumber)
+          .doc(widget.srNumber)
           .get();
 
-      if (serviceRequestQuery.docs.isNotEmpty && serviceHistoryQuery.docs.isNotEmpty) {
-        _serviceRequestData = serviceRequestQuery.docs.first.data();
-        _serviceHistoryData = serviceHistoryQuery.docs.first.data();
+      if (serviceRequestQuery.exists && serviceHistoryQuery.exists) {
+        _serviceRequestData = serviceRequestQuery.data();
+        _serviceHistoryData = serviceHistoryQuery.data();
 
         // Load technician data
         final technicianId = _serviceHistoryData!['resolvedBy'] ?? _serviceHistoryData!['technician'];
@@ -78,71 +77,97 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
     }
   }
 
- // Update the _generateAndDownloadPdf method in your ServiceAcknowledgmentScreen
-
-Future<void> _generateAndDownloadPdf() async {
-  if (_serviceRequestData == null || _serviceHistoryData == null) return;
-
-  setState(() {
-    _isGeneratingPdf = true;
-    _errorMessage = null;
-  });
-
-  try {
-    // Generate PDF using the updated method
-    final pdfFile = await PdfService.generateServiceAcknowledgmentPdf(
-      _serviceRequestData!,
-      _serviceHistoryData!,
-      _technicianData,
-    );
+  // Show OTP verification dialog before PDF generation
+  void _initiateOtpVerification() {
+    final customerPhone = _serviceRequestData!['customerDetails']?['phone'];
     
-    // Share/Download PDF
-    await PdfService.shareAcknowledgmentPdf(pdfFile);
-    
-    // Update acknowledgment status in Firestore
-    await FirebaseFirestore.instance
-        .collection('serviceHistory')
-        .where('srNumber', isEqualTo: widget.srNumber)
-        .get()
-        .then((querySnapshot) {
-      for (var doc in querySnapshot.docs) {
-        doc.reference.update({
-          'acknowledgmentStatus': 'downloaded',
-          'acknowledgmentTimestamp': FieldValue.serverTimestamp(),
-        });
-      }
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Service acknowledgment PDF generated successfully!'),
-        backgroundColor: Colors.green[600],
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'OK',
-          textColor: Colors.white,
-          onPressed: () {},
+    if (customerPhone == null || customerPhone.toString().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Customer phone number not found. Cannot proceed with verification.'),
+          backgroundColor: Colors.red[600],
+          duration: const Duration(seconds: 3),
         ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => OtpVerificationDialog(
+        customerPhone: customerPhone.toString(),
+        onVerificationSuccess: _generateAndDownloadPdf,
       ),
     );
-  } catch (e) {
-    setState(() {
-      _errorMessage = 'Error generating PDF: $e';
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error generating PDF: $e'),
-        backgroundColor: Colors.red[600],
-        duration: const Duration(seconds: 5),
-      ),
-    );
-  } finally {
-    setState(() {
-      _isGeneratingPdf = false;
-    });
   }
-}
+
+  // Updated PDF generation method (called after OTP verification)
+  Future<void> _generateAndDownloadPdf() async {
+    if (_serviceRequestData == null || _serviceHistoryData == null) return;
+
+    setState(() {
+      _isGeneratingPdf = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Generate PDF using the updated method
+      final pdfFile = await PdfService.generateServiceAcknowledgmentPdf(
+        _serviceRequestData!,
+        _serviceHistoryData!,
+        _technicianData,
+      );
+      
+      // Share/Download PDF
+      await PdfService.shareAcknowledgmentPdf(pdfFile);
+      
+      // Update acknowledgment status in Firestore
+      await FirebaseFirestore.instance
+          .collection('serviceHistory')
+          .where('srNumber', isEqualTo: widget.srNumber)
+          .get()
+          .then((querySnapshot) {
+        for (var doc in querySnapshot.docs) {
+          doc.reference.update({
+            'acknowledgmentStatus': 'downloaded',
+            'acknowledgmentTimestamp': FieldValue.serverTimestamp(),
+            'verifiedDownload': true, // New field to track verified downloads
+          });
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Service acknowledgment PDF generated successfully!'),
+          backgroundColor: Colors.green[600],
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error generating PDF: $e';
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error generating PDF: $e'),
+          backgroundColor: Colors.red[600],
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isGeneratingPdf = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -175,7 +200,7 @@ Future<void> _generateAndDownloadPdf() async {
                         'AWG Details',
                         [
                           _buildInfoRow('Serial Number', _serviceHistoryData!['awgSerialNumber'] ?? 'N/A'),
-                          _buildInfoRow('Model', _serviceHistoryData!['model'] ?? 'N/A'),
+                          _buildInfoRow('Model', _serviceRequestData!['equipmentDetails']?['model'] ?? 'N/A'),
                         ],
                       ),
 
@@ -183,9 +208,9 @@ Future<void> _generateAndDownloadPdf() async {
                       _buildSection(
                         'Customer Details',
                         [
-                          _buildInfoRow('Name', _serviceRequestData!['serviceDetails']?['customerName'] ?? 'N/A'),
-                          _buildInfoRow('Phone Number', _serviceRequestData!['serviceDetails']?['customerPhoneNumber'] ?? 'N/A'),
-                          _buildInfoRow('Company', _serviceRequestData!['serviceDetails']?['companyName'] ?? 'N/A'),
+                          _buildInfoRow('Name', _serviceRequestData!['customerDetails']?['name'] ?? 'N/A'),
+                          _buildInfoRow('Phone Number', _serviceRequestData!['customerDetails']?['phone'] ?? 'N/A'),
+                          _buildInfoRow('Company', _serviceRequestData!['customerDetails']?['company'] ?? 'N/A'),
                           _buildInfoRow('Address', _getFullAddress()),
                         ],
                       ),
@@ -194,24 +219,14 @@ Future<void> _generateAndDownloadPdf() async {
                       _buildSection(
                         'Service Details',
                         [
-                          _buildInfoRow('Issue Identification', _serviceHistoryData!['issueIdentification'] ?? 'N/A'),
-                          _buildInfoRow('Parts Replaced', _serviceHistoryData!['partsReplaced'] ?? 'N/A'),
-                          _buildInfoRow('Complaint Related To', _serviceHistoryData!['complaintRelatedTo'] ?? 'N/A'),
                           _buildInfoRow('Customer Complaint', _serviceHistoryData!['customerComplaint'] ?? 'N/A'),
                           _buildInfoRow('Solution Provided', _serviceHistoryData!['solutionProvided'] ?? 'N/A'),
-                          _buildInfoRow('Request Type', _serviceRequestData!['requestType'] ?? 'N/A'),
+                          _buildInfoRow('Issue Identification', _serviceHistoryData!['issueIdentification'] ?? 'N/A'),
+                          _buildInfoRow('Complaint Related To', _serviceHistoryData!['complaintRelatedTo'] ?? 'N/A'),
+                          _buildInfoRow('Complaint Type', _serviceRequestData!['serviceDetails']?['requestType'] ?? 'N/A'),                       
+                          _buildInfoRow('Parts Replaced', _serviceHistoryData!['partsReplaced'] ?? 'N/A'),
                         ],
                       ),
-
-                      // Service Images Section (Issue and Resolution only)
-                      if (_hasServiceImages())
-                        _buildSection(
-                          'Service Images',
-                          [
-                            _buildImageRow('Issue Photo', _getIssueImageUrl()),
-                            _buildImageRow('Resolution Photo', _serviceHistoryData!['resolutionImageUrl']),
-                          ],
-                        ),
 
                       // Maintenance Suggestions Section
                       _buildSection(
@@ -224,7 +239,7 @@ Future<void> _generateAndDownloadPdf() async {
                           if (_serviceHistoryData!['customSuggestions'] != null && _serviceHistoryData!['customSuggestions'].toString().isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
-                              child: Text('Additional Suggestions: ${_serviceHistoryData!['customSuggestions']}'),
+                              child: Text('Custom Suggestions: ${_serviceHistoryData!['customSuggestions']}'),
                             ),
                         ],
                       ),
@@ -233,15 +248,14 @@ Future<void> _generateAndDownloadPdf() async {
                       _buildSection(
                         'Service Timeline',
                         [
-                          _buildInfoRow('Request Created', _formatTimestamp(_serviceRequestData!['createddate'])),
-                          _buildInfoRow('Service Delayed At', _formatTimestamp(_serviceRequestData!['delayedAt'])),
+                          _buildInfoRow('Request Created', _formatTimestamp(_serviceRequestData!['createdAt'])),
                           _buildInfoRow('Resolution Time', _formatTimestamp(_serviceHistoryData!['resolutionTimestamp'])),
                           if (_serviceHistoryData!['acknowledgmentTimestamp'] != null)
                             _buildInfoRow('Acknowledgment Time', _formatTimestamp(_serviceHistoryData!['acknowledgmentTimestamp'])),
                         ],
                       ),
 
-                      // Download PDF Section
+                      // Download PDF Section with OTP Verification
                       _buildDownloadSection(),
                     ],
                   ),
@@ -351,54 +365,6 @@ Future<void> _generateAndDownloadPdf() async {
     );
   }
 
-  Widget _buildImageRow(String label, String? imageUrl) {
-    if (imageUrl == null || imageUrl.isEmpty) return const SizedBox.shrink();
-    
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              height: 200,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                height: 200,
-                color: Colors.grey[200],
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-              errorWidget: (context, url, error) => Container(
-                height: 200,
-                color: Colors.grey[200],
-                child: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error, color: Colors.red),
-                      Text('Failed to load image'),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSuggestionItem(String text, bool isSelected) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -446,15 +412,15 @@ Future<void> _generateAndDownloadPdf() async {
             child: Row(
               children: [
                 Icon(
-                  Icons.download,
+                  Icons.verified_user,
                   color: Colors.green[600],
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Download Service Report',
+                  'Secure Download Service Report',
                   style: TextStyle(
-                    fontSize: 18, 
+                    fontSize: 14, 
                     fontWeight: FontWeight.bold,
                     color: Colors.green[800],
                   ),
@@ -490,6 +456,29 @@ Future<void> _generateAndDownloadPdf() async {
                     ),
                   ),
                 
+                // Security Notice
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info, color: Colors.blue[600], size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Customer verification required. An OTP will be sent to ${_serviceRequestData!['customerDetails']?['phone'] ?? 'customer\'s phone'} for secure download.',
+                          style: TextStyle(color: Colors.blue[700], fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
                 const Text(
                   'Generate and download the service acknowledgment PDF report',
                   style: TextStyle(fontSize: 16, color: Colors.grey),
@@ -498,7 +487,7 @@ Future<void> _generateAndDownloadPdf() async {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: _isGeneratingPdf ? null : _generateAndDownloadPdf,
+                    onPressed: _isGeneratingPdf ? null : _initiateOtpVerification,
                     icon: _isGeneratingPdf
                         ? const SizedBox(
                             height: 20,
@@ -508,8 +497,8 @@ Future<void> _generateAndDownloadPdf() async {
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                        : const Icon(Icons.download),
-                    label: Text(_isGeneratingPdf ? 'Generating PDF...' : 'Download PDF Report'),
+                        : const Icon(Icons.verified_user),
+                    label: Text(_isGeneratingPdf ? 'Generating PDF...' : 'Verify & Download PDF'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green[600],
                       foregroundColor: Colors.white,
@@ -531,20 +520,36 @@ Future<void> _generateAndDownloadPdf() async {
   // Helper methods
   String _formatTimestamp(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-    
-    DateTime date;
+
+    DateTime? date;
+
+    // Case 1: Firebase Timestamp
     if (timestamp is Timestamp) {
       date = timestamp.toDate();
-    } else if (timestamp is String) {
+    } 
+    // Case 2: ISO-8601 String
+    else if (timestamp is String) {
       try {
         date = DateTime.parse(timestamp);
       } catch (e) {
-        return timestamp;
+        // Case 3: Try custom string like "July 22, 2025 at 11:06:43 AM UTC+5:30"
+        try {
+          // Normalize UTC+5:30 to UTC+0530 for parsing
+          String cleaned = timestamp.replaceAll('UTC+5:30', 'UTC+0530');
+
+          // Optional: remove any unusual unicode spaces (like non-breaking space)
+          cleaned = cleaned.replaceAll(RegExp(r'\s+'), ' ');
+
+          final customFormat = DateFormat("MMMM d, y 'at' hh:mm:ss a 'UTC'Z");
+          date = customFormat.parse(cleaned);
+        } catch (e) {
+          return timestamp; // Still can't parse
+        }
       }
     } else {
       return 'N/A';
     }
-    
+
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
@@ -556,28 +561,15 @@ Future<void> _generateAndDownloadPdf() async {
   }
 
   String _getFullAddress() {
-    final serviceDetails = _serviceRequestData!['serviceDetails'];
+    final serviceDetails = _serviceRequestData!['customerDetails']?['address'];
     if (serviceDetails == null) return 'N/A';
     
     final List<String> addressParts = [];
     
-    if (serviceDetails['address'] != null) addressParts.add(serviceDetails['address']);
+    if (serviceDetails['fullAddress'] != null) addressParts.add(serviceDetails['fullAddress']);
     if (serviceDetails['city'] != null) addressParts.add(serviceDetails['city']);
     if (serviceDetails['state'] != null) addressParts.add(serviceDetails['state']);
-    if (serviceDetails['pincode'] != null) addressParts.add(serviceDetails['pincode']);
     
     return addressParts.isNotEmpty ? addressParts.join(', ') : 'N/A';
-  }
-
-  bool _hasServiceImages() {
-    return _getIssueImageUrl() != null || _serviceHistoryData!['resolutionImageUrl'] != null;
-  }
-
-  String? _getIssueImageUrl() {
-    final issueImageUrls = _serviceHistoryData!['issueImageUrls'];
-    if (issueImageUrls != null && issueImageUrls is List && issueImageUrls.isNotEmpty) {
-      return issueImageUrls[0];
-    }
-    return null;
   }
 }
