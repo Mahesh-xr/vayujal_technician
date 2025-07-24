@@ -574,7 +574,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
               width: double.infinity,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [cardColor, cardColor],
+                  colors: [Colors.white, Colors.blue],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -772,7 +772,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     final List<String> leftViewImages = _extractUrls(_serviceHistory!['leftViewImageUrls']);
     final List<String> rightViewImages = _extractUrls(_serviceHistory!['rightViewImageUrls']);
     final List<String> issueImages = _extractUrls(_serviceHistory!['issueImageUrls']);
-    final List<String> resolutionImages = _extractUrls(_serviceHistory!['resolutionImageUrl']);
+    final List<String> resolutionImages = _extractUrls(_serviceHistory!['resolutionImageUrls']);
 
     // Extract video URLs safely
     final String? issueVideoUrl = _serviceHistory!['issueVideoUrl']?.toString();
@@ -819,14 +819,14 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
         _buildVideoSection(
           issueVideoUrl,
           'Issue Video',
-          accentColor: Colors.deepPurple,
+          accentColor: Colors.red,
         ),
         
         // Resolution Video
         _buildVideoSection(
           resolutionVideoUrl,
           'Resolution Video',
-          accentColor: Colors.indigo,
+          accentColor:  Colors.teal,
         ),
       ],
     );

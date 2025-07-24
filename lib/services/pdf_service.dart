@@ -1,12 +1,10 @@
 // services/pdf_service.dart
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
-import 'package:vayujal_technician/models/service_acknowledgement_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
@@ -33,8 +31,11 @@ class PdfService {
       }
       
       // Get resolution image URL
-      if (serviceHistoryData['resolutionImageUrl'] != null) {
-        final resolutionResponse = await http.get(Uri.parse(serviceHistoryData['resolutionImageUrl']));
+      final resolutionImageUrls = serviceHistoryData['resolutionImageUrls'];
+      if (resolutionImageUrls!= null && resolutionImageUrls is List && resolutionImageUrls.isNotEmpty) {
+        final resolutionResponse = await http.get(Uri.parse(resolutionImageUrls[0]));
+         // Check if the response is successful
+         // If successful, convert the image bytes to MemoryImage
         if (resolutionResponse.statusCode == 200) {
           resolutionImage = pw.MemoryImage(resolutionResponse.bodyBytes);
         }

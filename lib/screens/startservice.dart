@@ -70,6 +70,7 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
     _complaintOthersController.dispose();
     _issueOthersController.dispose();
     _videoController?.dispose();
+    
     super.dispose();
   }
 
@@ -404,160 +405,160 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
     );
   }
 
-  Widget _buildVideoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Video preview
-        if (_issueVideo != null && _videoController != null)
-          Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Stack(
-                children: [
-                  VideoPlayer(_videoController!),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              if (_videoController!.value.isPlaying) {
-                                _videoController!.pause();
-                              } else {
-                                _videoController!.play();
-                              }
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              _videoController!.value.isPlaying 
-                                  ? Icons.pause 
-                                  : Icons.play_arrow,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _videoController?.dispose();
-                              _videoController = null;
-                              _issueVideo = null;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+  // Widget _buildVideoSection() {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       // Video preview
+  //       if (_issueVideo != null && _videoController != null)
+  //         Container(
+  //           height: 200,
+  //           width: double.infinity,
+  //           decoration: BoxDecoration(
+  //             borderRadius: BorderRadius.circular(8),
+  //             border: Border.all(color: Colors.grey[300]!),
+  //           ),
+  //           child: ClipRRect(
+  //             borderRadius: BorderRadius.circular(8),
+  //             child: Stack(
+  //               children: [
+  //                 VideoPlayer(_videoController!),
+  //                 Positioned(
+  //                   top: 8,
+  //                   right: 8,
+  //                   child: Row(
+  //                     children: [
+  //                       GestureDetector(
+  //                         onTap: () {
+  //                           setState(() {
+  //                             if (_videoController!.value.isPlaying) {
+  //                               _videoController!.pause();
+  //                             } else {
+  //                               _videoController!.play();
+  //                             }
+  //                           });
+  //                         },
+  //                         child: Container(
+  //                           padding: const EdgeInsets.all(8),
+  //                           decoration: const BoxDecoration(
+  //                             color: Colors.black54,
+  //                             shape: BoxShape.circle,
+  //                           ),
+  //                           child: Icon(
+  //                             _videoController!.value.isPlaying 
+  //                                 ? Icons.pause 
+  //                                 : Icons.play_arrow,
+  //                             color: Colors.white,
+  //                             size: 20,
+  //                           ),
+  //                         ),
+  //                       ),
+  //                       const SizedBox(width: 8),
+  //                       GestureDetector(
+  //                         onTap: () {
+  //                           setState(() {
+  //                             _videoController?.dispose();
+  //                             _videoController = null;
+  //                             _issueVideo = null;
+  //                           });
+  //                         },
+  //                         child: Container(
+  //                           padding: const EdgeInsets.all(8),
+  //                           decoration: const BoxDecoration(
+  //                             color: Colors.red,
+  //                             shape: BoxShape.circle,
+  //                           ),
+  //                           child: const Icon(
+  //                             Icons.close,
+  //                             color: Colors.white,
+  //                             size: 20,
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     ],
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
         
-        if (_issueVideo != null) const SizedBox(height: 8),
+  //       if (_issueVideo != null) const SizedBox(height: 8),
         
-        // Add video button
-        Container(
-          width: double.infinity,
-          height: 120,
-          decoration: BoxDecoration(
-            color: Colors.grey[50],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.videocam_outlined,
-                    size: 24,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.video_library_outlined,
-                    size: 24,
-                    color: Colors.grey[400],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _issueVideo == null 
-                    ? 'No Video uploaded' 
-                    : 'Video ready',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: (_videoUploading || _issueVideo != null) ? null : () => _showVideoSourceDialog(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                child: _videoUploading
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(
-                        _issueVideo != null 
-                            ? 'Video Added' 
-                            : 'Add Video',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  //       // Add video button
+  //       Container(
+  //         width: double.infinity,
+  //         height: 120,
+  //         decoration: BoxDecoration(
+  //           color: Colors.grey[50],
+  //           borderRadius: BorderRadius.circular(8),
+  //           border: Border.all(color: Colors.grey[300]!),
+  //         ),
+  //         child: Column(
+  //           mainAxisAlignment: MainAxisAlignment.center,
+  //           children: [
+  //             Row(
+  //               mainAxisAlignment: MainAxisAlignment.center,
+  //               children: [
+  //                 Icon(
+  //                   Icons.videocam_outlined,
+  //                   size: 24,
+  //                   color: Colors.grey[400],
+  //                 ),
+  //                 const SizedBox(width: 8),
+  //                 Icon(
+  //                   Icons.video_library_outlined,
+  //                   size: 24,
+  //                   color: Colors.grey[400],
+  //                 ),
+  //               ],
+  //             ),
+  //             const SizedBox(height: 8),
+  //             Text(
+  //               _issueVideo == null 
+  //                   ? 'No Video uploaded' 
+  //                   : 'Video ready',
+  //               style: TextStyle(
+  //                 color: Colors.grey[600],
+  //                 fontSize: 12,
+  //               ),
+  //             ),
+  //             const SizedBox(height: 8),
+  //             ElevatedButton(
+  //               onPressed: (_videoUploading || _issueVideo != null) ? null : () => _showVideoSourceDialog(),
+  //               style: ElevatedButton.styleFrom(
+  //                 backgroundColor: Colors.black,
+  //                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+  //                 shape: RoundedRectangleBorder(
+  //                   borderRadius: BorderRadius.circular(4),
+  //                 ),
+  //               ),
+  //               child: _videoUploading
+  //                   ? const SizedBox(
+  //                       height: 16,
+  //                       width: 16,
+  //                       child: CircularProgressIndicator(
+  //                         color: Colors.white,
+  //                         strokeWidth: 2,
+  //                       ),
+  //                     )
+  //                   : Text(
+  //                       _issueVideo != null 
+  //                           ? 'Video Added' 
+  //                           : 'Add Video',
+  //                       style: const TextStyle(
+  //                         color: Colors.white,
+  //                         fontSize: 12,
+  //                         fontWeight: FontWeight.w600,
+  //                       ),
+  //                     ),
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   Widget _buildSectionTitle(String title) {
     return Text(
@@ -799,32 +800,32 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
   }
 
   // UPDATED: Video picker with better error handling
-  Future<void> _pickVideo(ImageSource source) async {
-    try {
-      setState(() => _videoUploading = true);
+  // Future<void> _pickVideo(ImageSource source) async {
+  //   try {
+  //     setState(() => _videoUploading = true);
       
-      final XFile? video = await _picker.pickVideo(
-        source: source,
-        maxDuration: const Duration(seconds: 10),
-      );
+  //     final XFile? video = await _picker.pickVideo(
+  //       source: source,
+  //       maxDuration: const Duration(seconds: 10),
+  //     );
       
-      if (video != null) {
-        File videoFile = File(video.path);
+  //     if (video != null) {
+  //       File videoFile = File(video.path);
         
-        // Initialize video controller
-        _videoController = VideoPlayerController.file(videoFile);
-        await _videoController!.initialize();
+  //       // Initialize video controller
+  //       _videoController = VideoPlayerController.file(videoFile);
+  //       await _videoController!.initialize();
         
-        setState(() {
-          _issueVideo = videoFile;
-        });
-      }
-    } catch (e) {
-      _showErrorDialog('Error picking video: $e');
-    } finally {
-      setState(() => _videoUploading = false);
-    }
-  }
+  //       setState(() {
+  //         _issueVideo = videoFile;
+  //       });
+  //     }
+  //   } catch (e) {
+  //     _showErrorDialog('Error picking video: $e');
+  //   } finally {
+  //     setState(() => _videoUploading = false);
+  //   }
+  // }
 
   Future<List<String>> _uploadMultipleImages(List<File> images, String prefix) async {
     List<String> urls = [];
@@ -995,4 +996,518 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
       ),
     );
   }
+  // UPDATED: Video picker with proper setState and thumbnail display
+// Future<void> _pickVideo(ImageSource source) async {
+//   try {
+//     setState(() => _videoUploading = true);
+    
+//     final XFile? video = await _picker.pickVideo(
+//       source: source,
+//       maxDuration: const Duration(seconds: 10),
+//     );
+    
+//     if (video != null) {
+//       File videoFile = File(video.path);
+      
+//       // Dispose previous controller if exists
+//       _videoController?.dispose();
+      
+//       // Initialize video controller
+//       _videoController = VideoPlayerController.file(videoFile);
+      
+//       // Wait for initialization and then update UI
+//       await _videoController!.initialize();
+      
+//       setState(() {
+//         _issueVideo = videoFile;
+//         _videoUploading = false; // Move this inside setState
+//       });
+//     } else {
+//       setState(() => _videoUploading = false);
+//     }
+//   } catch (e) {
+//     _showErrorDialog('Error picking video: $e');
+//     setState(() => _videoUploading = false);
+//   }
+// }
+
+// // Also update your video section widget to handle the loading state better
+// Widget _buildVideoSection() {
+//   return Column(
+//     crossAxisAlignment: CrossAxisAlignment.start,
+//     children: [
+//       // Video preview
+//       if (_issueVideo != null && _videoController != null && _videoController!.value.isInitialized)
+//         Container(
+//           height: 200,
+//           width: double.infinity,
+//           decoration: BoxDecoration(
+//             borderRadius: BorderRadius.circular(8),
+//             border: Border.all(color: Colors.grey[300]!),
+//           ),
+//           child: ClipRRect(
+//             borderRadius: BorderRadius.circular(8),
+//             child: Stack(
+//               children: [
+//                 // Add AspectRatio widget to maintain proper video dimensions
+//                 AspectRatio(
+//                   aspectRatio: _videoController!.value.aspectRatio,
+//                   child: VideoPlayer(_videoController!),
+//                 ),
+//                 Positioned(
+//                   top: 8,
+//                   right: 8,
+//                   child: Row(
+//                     children: [
+//                       GestureDetector(
+//                         onTap: () {
+//                           setState(() {
+//                             if (_videoController!.value.isPlaying) {
+//                               _videoController!.pause();
+//                             } else {
+//                               _videoController!.play();
+//                             }
+//                           });
+//                         },
+//                         child: Container(
+//                           padding: const EdgeInsets.all(8),
+//                           decoration: const BoxDecoration(
+//                             color: Colors.black54,
+//                             shape: BoxShape.circle,
+//                           ),
+//                           child: Icon(
+//                             _videoController!.value.isPlaying 
+//                                 ? Icons.pause 
+//                                 : Icons.play_arrow,
+//                             color: Colors.white,
+//                             size: 20,
+//                           ),
+//                         ),
+//                       ),
+//                       const SizedBox(width: 8),
+//                       GestureDetector(
+//                         onTap: () {
+//                           setState(() {
+//                             _videoController?.dispose();
+//                             _videoController = null;
+//                             _issueVideo = null;
+//                           });
+//                         },
+//                         child: Container(
+//                           padding: const EdgeInsets.all(8),
+//                           decoration: const BoxDecoration(
+//                             color: Colors.red,
+//                             shape: BoxShape.circle,
+//                           ),
+//                           child: const Icon(
+//                             Icons.close,
+//                             color: Colors.white,
+//                             size: 20,
+//                           ),
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ),
+      
+//       // Show loading indicator while video is being processed
+//       if (_issueVideo != null && (_videoController == null || !_videoController!.value.isInitialized))
+//         Container(
+//           height: 200,
+//           width: double.infinity,
+//           decoration: BoxDecoration(
+//             borderRadius: BorderRadius.circular(8),
+//             border: Border.all(color: Colors.grey[300]!),
+//             color: Colors.grey[100],
+//           ),
+//           child: const Center(
+//             child: Column(
+//               mainAxisAlignment: MainAxisAlignment.center,
+//               children: [
+//                 CircularProgressIndicator(),
+//                 SizedBox(height: 16),
+//                 Text(
+//                   'Loading video...',
+//                   style: TextStyle(color: Colors.grey),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ),
+      
+//       if (_issueVideo != null) const SizedBox(height: 8),
+      
+//       // Add video button (rest of your existing code...)
+//       Container(
+//         width: double.infinity,
+//         height: 120,
+//         decoration: BoxDecoration(
+//           color: Colors.grey[50],
+//           borderRadius: BorderRadius.circular(8),
+//           border: Border.all(color: Colors.grey[300]!),
+//         ),
+//         child: Column(
+//           mainAxisAlignment: MainAxisAlignment.center,
+//           children: [
+//             Row(
+//               mainAxisAlignment: MainAxisAlignment.center,
+//               children: [
+//                 Icon(
+//                   Icons.videocam_outlined,
+//                   size: 24,
+//                   color: Colors.grey[400],
+//                 ),
+//                 const SizedBox(width: 8),
+//                 Icon(
+//                   Icons.video_library_outlined,
+//                   size: 24,
+//                   color: Colors.grey[400],
+//                 ),
+//               ],
+//             ),
+//             const SizedBox(height: 8),
+//             Text(
+//               _issueVideo == null 
+//                   ? 'No Video uploaded' 
+//                   : 'Video ready',
+//               style: TextStyle(
+//                 color: Colors.grey[600],
+//                 fontSize: 12,
+//               ),
+//             ),
+//             const SizedBox(height: 8),
+//             ElevatedButton(
+//               onPressed: (_videoUploading || _issueVideo != null) ? null : () => _showVideoSourceDialog(),
+//               style: ElevatedButton.styleFrom(
+//                 backgroundColor: Colors.black,
+//                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+//                 shape: RoundedRectangleBorder(
+//                   borderRadius: BorderRadius.circular(4),
+//                 ),
+//               ),
+//               child: _videoUploading
+//                   ? const SizedBox(
+//                       height: 16,
+//                       width: 16,
+//                       child: CircularProgressIndicator(
+//                         color: Colors.white,
+//                         strokeWidth: 2,
+//                       ),
+//                     )
+//                   : Text(
+//                       _issueVideo != null 
+//                           ? 'Video Added' 
+//                           : 'Add Video',
+//                       style: const TextStyle(
+//                         color: Colors.white,
+//                         fontSize: 12,
+//                         fontWeight: FontWeight.w600,
+//                       ),
+//                     ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     ],
+//   );
+// }
+
+
+// Add this boolean to your state variables at the top of the class
+bool _videoInitializing = false;
+
+// Replace your existing _buildVideoSection method with this improved version
+Widget _buildVideoSection() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Video preview
+      if (_issueVideo != null)
+        Container(
+          height: 200,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[300]!),
+            color: Colors.black,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Stack(
+              children: [
+                // Show loading indicator while initializing
+                if (_videoInitializing || _videoController == null)
+                  const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
+                else if (_videoController!.value.isInitialized)
+                  // Show video player when ready
+                  SizedBox.expand(
+                    child: FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: _videoController!.value.size.width,
+                        height: _videoController!.value.size.height,
+                        child: VideoPlayer(_videoController!),
+                      ),
+                    ),
+                  )
+                else
+                  // Show error state
+                  const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error, color: Colors.white, size: 48),
+                        SizedBox(height: 8),
+                        Text(
+                          'Failed to load video',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Control buttons (only show when video is ready)
+                if (_videoController != null && 
+                    _videoController!.value.isInitialized && 
+                    !_videoInitializing)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              if (_videoController!.value.isPlaying) {
+                                _videoController!.pause();
+                              } else {
+                                _videoController!.play();
+                              }
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _videoController!.value.isPlaying 
+                                  ? Icons.pause 
+                                  : Icons.play_arrow,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _videoController?.dispose();
+                              _videoController = null;
+                              _issueVideo = null;
+                              _videoInitializing = false;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Video duration indicator (bottom left)
+                if (_videoController != null && 
+                    _videoController!.value.isInitialized && 
+                    !_videoInitializing)
+                  Positioned(
+                    bottom: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _formatDuration(_videoController!.value.duration),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      
+      if (_issueVideo != null) const SizedBox(height: 8),
+      
+      // Add video button (same as before)
+      Container(
+        width: double.infinity,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.videocam_outlined,
+                  size: 24,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.video_library_outlined,
+                  size: 24,
+                  color: Colors.grey[400],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _issueVideo == null 
+                  ? 'No Video uploaded' 
+                  : 'Video ready',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: (_videoUploading || _videoInitializing || _issueVideo != null) 
+                  ? null 
+                  : () => _showVideoSourceDialog(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              child: (_videoUploading || _videoInitializing)
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      _issueVideo != null 
+                          ? 'Video Added' 
+                          : 'Add Video',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+// Replace your existing _pickVideo method with this improved version
+Future<void> _pickVideo(ImageSource source) async {
+  try {
+    setState(() => _videoUploading = true);
+    
+    final XFile? video = await _picker.pickVideo(
+      source: source,
+      maxDuration: const Duration(seconds: 10),
+    );
+    
+    if (video != null) {
+      File videoFile = File(video.path);
+      
+      // Set initializing state
+      setState(() {
+        _videoInitializing = true;
+        _videoUploading = false;
+        _issueVideo = videoFile;
+      });
+      
+      try {
+        // Dispose previous controller if exists
+        await _videoController?.dispose();
+        
+        // Initialize new video controller
+        _videoController = VideoPlayerController.file(videoFile);
+        await _videoController!.initialize();
+        
+        // Listen to video controller changes for play/pause updates
+        _videoController!.addListener(() {
+          if (mounted) setState(() {});
+        });
+        
+        setState(() {
+          _videoInitializing = false;
+        });
+        
+      } catch (e) {
+        print('Error initializing video: $e');
+        setState(() {
+          _videoInitializing = false;
+          _issueVideo = null;
+          _videoController = null;
+        });
+        _showErrorDialog('Error loading video: $e');
+      }
+    }
+  } catch (e) {
+    setState(() {
+      _videoUploading = false;
+      _videoInitializing = false;
+    });
+    _showErrorDialog('Error picking video: $e');
+  } finally {
+    if (mounted) {
+      setState(() => _videoUploading = false);
+    }
+  }
+}
+
+// Add this helper method for formatting video duration
+String _formatDuration(Duration duration) {
+  String twoDigits(int n) => n.toString().padLeft(2, '0');
+  String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+  String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+  return "$twoDigitMinutes:$twoDigitSeconds";
+}
+
+// Also update your dispose method to handle the new state
+
+
 }

@@ -145,7 +145,8 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
           action: SnackBarAction(
             label: 'OK',
             textColor: Colors.white,
-            onPressed: () {},
+            onPressed: () {
+            },
           ),
         ),
       );
@@ -164,6 +165,8 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
     } finally {
       setState(() {
         _isGeneratingPdf = false;
+         Navigator.pushNamed(context, '/history');
+
       });
     }
   }
@@ -487,7 +490,8 @@ class _ServiceAcknowledgmentScreenState extends State<ServiceAcknowledgmentScree
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: _isGeneratingPdf ? null : _initiateOtpVerification,
+                    // onPressed: _isGeneratingPdf ? null : _initiateOtpVerification,
+                    onPressed: _generateAndDownloadPdf,
                     icon: _isGeneratingPdf
                         ? const SizedBox(
                             height: 20,

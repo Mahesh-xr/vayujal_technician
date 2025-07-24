@@ -4,7 +4,7 @@ import 'package:vayujal_technician/firebase_options.dart';
 import 'package:vayujal_technician/screens/all_service_request_page.dart';
 import 'package:vayujal_technician/screens/dashboard_screen.dart';
 import 'package:vayujal_technician/screens/login_screen.dart';
-import 'package:vayujal_technician/screens/service_acknowlwdgement_screen.dart.dart';
+import 'package:vayujal_technician/screens/splash_screen.dart';
 import 'package:vayujal_technician/utils/constants.dart';
 
 void main() async {
@@ -61,8 +61,8 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      // home: const LoginScreen(),
-       home: ServiceAcknowledgmentScreen(srNumber: 'SR_01797_194'),
+      home: const SplashScreen(),
+      //  home: ServiceAcknowledgmentScreen(srNumber: 'SR_01797_194'),
        routes: {
         '/dashboard': (context) => const DashboardScreen(),
         '/service': (context) => const AllServiceRequestsPage(

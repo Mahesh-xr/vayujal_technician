@@ -273,7 +273,6 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         children: [
           _buildDetailRow('Technician Name', serviceDetail!['technician'] ?? ''),
           _buildDetailRow('Employee ID', serviceDetail!['empId'] ?? ''),
-          _buildDetailRow('Resolved By ID', serviceDetail!['resolvedBy'] ?? ''),
           _buildDetailRow('Service Date', _formatDateTime(serviceDetail!['timestamp'])),
           _buildDetailRow('Resolution Date', _formatDateTime(serviceDetail!['resolutionTimestamp'])),
           _buildDetailRow('Next Service Date', _formatDate(serviceDetail!['nextServiceDate'])),
@@ -487,7 +486,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               width: double.infinity,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [cardColor, cardColor],
+                  colors: [Colors.white, Colors.blue],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -685,7 +684,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     final List<String> leftViewImages = _extractUrls(serviceDetail!['leftViewImageUrls']);
     final List<String> rightViewImages = _extractUrls(serviceDetail!['rightViewImageUrls']);
     final List<String> issueImages = _extractUrls(serviceDetail!['issueImageUrls']);
-    final List<String> resolutionImages = _extractUrls(serviceDetail!['resolutionImageUrl']);
+    final List<String> resolutionImages = _extractUrls(serviceDetail!['resolutionImageUrls']);
 
     // Extract video URLs safely
     final String? issueVideoUrl = serviceDetail!['issueVideoUrl']?.toString();
@@ -732,14 +731,14 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         _buildVideoSection(
           issueVideoUrl,
           'Issue Video',
-          accentColor: Colors.deepPurple,
+          accentColor: Colors.red,
         ),
         
         // Resolution Video
         _buildVideoSection(
           resolutionVideoUrl,
           'Resolution Video',
-          accentColor: Colors.indigo,
+          accentColor: Colors.teal,
         ),
       ],
     );
