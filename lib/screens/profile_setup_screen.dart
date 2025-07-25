@@ -60,6 +60,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final User? user = FirebaseAuth.instance.currentUser;
     if (user != null && user.email != null) {
       _emailController.text = user.email!;
+      
     }
   }
 
@@ -355,7 +356,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         mobileNumber: _mobileController.text.trim(),
         email: _emailController.text.trim(),
         designation: _selectedDesignation,
-        profileImage: _selectedImage,
+        profileImage: _profileImageUrl,
       );
 
       print('Profile setup result: $result');

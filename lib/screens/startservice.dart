@@ -41,8 +41,8 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
   VideoPlayerController? _videoController;
   
   // Dropdown values
-  String? _selectedComplaintType;
-  String? _selectedIssueType;
+  List<String> _selectedComplaintTypes = [];
+  List<String> _selectedIssueTypes = [];
   
   // Loading states
   bool _isUploading = false;
@@ -131,42 +131,81 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // Complaint Related to Dropdown
-                    _buildDropdownField(
-                      'Complaint Related to',
-                      _selectedComplaintType,
-                      _complaintTypes,
-                      (value) => setState(() => _selectedComplaintType = value),
-                    ),
-                    
-                    // Show "Mention if Others" field for complaint type
-                    if (_selectedComplaintType == 'Others')
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: _buildTextField(
-                          'Mention if Others',
-                          _complaintOthersController,
+                    // Complaint Related to Multi-Select
+                    Text('Complaint Related to', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: _showComplaintSelectionDialog,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedComplaintTypes.isEmpty
+                                  ? 'Tap to select complaints'
+                                  : 'Selected (${_selectedComplaintTypes.length}):',
+                              style: TextStyle(
+                                color: _selectedComplaintTypes.isEmpty ? Colors.grey : Colors.blue[800],
+                                fontWeight: _selectedComplaintTypes.isEmpty ? FontWeight.normal : FontWeight.bold,
+                              ),
+                            ),
+                            if (_selectedComplaintTypes.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(_selectedComplaintTypes.join(', '), style: const TextStyle(color: Colors.black87)),
+                            ],
+                          ],
                         ),
                       ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Type of Raised Issue Dropdown
-                    _buildDropdownField(
-                      'Type of Raised Issue',
-                      _selectedIssueType,
-                      _issueTypes,
-                      (value) => setState(() => _selectedIssueType = value),
                     ),
-                    
-                    // Show "Mention if Others" field for issue type
-                    if (_selectedIssueType == 'Others')
+                    if (_selectedComplaintTypes.contains('Others'))
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
-                        child: _buildTextField(
-                          'Mention if Others',
-                          _issueOthersController,
+                        child: _buildTextField('Mention if Others', _complaintOthersController),
+                      ),
+                    const SizedBox(height: 16),
+                    
+                    // Type of Raised Issue Multi-Select
+                    Text('Type of Raised Issue', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: _showIssueSelectionDialog,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
                         ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedIssueTypes.isEmpty
+                                  ? 'Tap to select issues'
+                                  : 'Selected (${_selectedIssueTypes.length}):',
+                              style: TextStyle(
+                                color: _selectedIssueTypes.isEmpty ? Colors.grey : Colors.blue[800],
+                                fontWeight: _selectedIssueTypes.isEmpty ? FontWeight.normal : FontWeight.bold,
+                              ),
+                            ),
+                            if (_selectedIssueTypes.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(_selectedIssueTypes.join(', '), style: const TextStyle(color: Colors.black87)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_selectedIssueTypes.contains('Others'))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: _buildTextField('Mention if Others', _issueOthersController),
                       ),
                     
                     const SizedBox(height: 24),
@@ -873,17 +912,17 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
 
   Future<void> _saveServiceData() async {
     // Validate required fields
-    if (_selectedComplaintType == null || _selectedIssueType == null) {
+    if (_selectedComplaintTypes.isEmpty || _selectedIssueTypes.isEmpty) {
       _showErrorDialog('Please fill in all required fields');
       return;
     }
 
-    if (_selectedComplaintType == 'Others' && _complaintOthersController.text.trim().isEmpty) {
+    if (_selectedComplaintTypes.contains('Others') && _complaintOthersController.text.trim().isEmpty) {
       _showErrorDialog('Please specify the complaint type');
       return;
     }
 
-    if (_selectedIssueType == 'Others' && _issueOthersController.text.trim().isEmpty) {
+    if (_selectedIssueTypes.contains('Others') && _issueOthersController.text.trim().isEmpty) {
       _showErrorDialog('Please specify the issue type');
       return;
     }
@@ -934,8 +973,8 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
         'empId': empId,
         'srNumber': widget.srNumber,
         'customerComplaint': widget.customerComplaint,
-        'complaintRelatedTo': _selectedComplaintType,
-        'typeOfRaisedIssue': _selectedIssueType,
+        'complaintRelatedTo': _selectedComplaintTypes,
+        'typeOfRaisedIssue': _selectedIssueTypes,
         'timestamp': FieldValue.serverTimestamp(),
         'status': 'in_progress',
         'awgSerialNumber': widget.awgSerialNumber,
@@ -951,11 +990,23 @@ class _StartServiceScreenState extends State<StartServiceScreen> {
       if (videoUrl != null) serviceData['issueVideoUrl'] = videoUrl;
 
       // Add others text if applicable
-      if (_selectedComplaintType == 'Others') {
+      if (_selectedComplaintTypes.contains('Others')) {
         serviceData['complaintOthersText'] = _complaintOthersController.text.trim();
       }
-      if (_selectedIssueType == 'Others') {
+      if (_selectedIssueTypes.contains('Others')) {
         serviceData['issueOthersText'] = _issueOthersController.text.trim();
+      }
+
+      // Prepare final lists for Firestore
+      List<String> complaintTypesToSave = List.from(_selectedComplaintTypes);
+      if (complaintTypesToSave.contains('Others')) {
+        int idx = complaintTypesToSave.indexOf('Others');
+        complaintTypesToSave[idx] = _complaintOthersController.text.trim();
+      }
+      List<String> issueTypesToSave = List.from(_selectedIssueTypes);
+      if (issueTypesToSave.contains('Others')) {
+        int idx = issueTypesToSave.indexOf('Others');
+        issueTypesToSave[idx] = _issueOthersController.text.trim();
       }
 
       // Save to Firestore
@@ -1509,5 +1560,98 @@ String _formatDuration(Duration duration) {
 
 // Also update your dispose method to handle the new state
 
+void _showComplaintSelectionDialog() {
+  List<String> tempSelected = List.from(_selectedComplaintTypes);
+  showDialog(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('Select Complaint Related to (Multiple Selection)'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: ListView(
+            children: _complaintTypes.map((item) => CheckboxListTile(
+              title: Text(item),
+              value: tempSelected.contains(item),
+              onChanged: (value) {
+                setDialogState(() {
+                  if (value == true) {
+                    tempSelected.add(item);
+                  } else {
+                    tempSelected.remove(item);
+                  }
+                });
+              },
+            )).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectedComplaintTypes = tempSelected;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+void _showIssueSelectionDialog() {
+  List<String> tempSelected = List.from(_selectedIssueTypes);
+  showDialog(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('Select Type of Raised Issue (Multiple Selection)'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: ListView(
+            children: _issueTypes.map((item) => CheckboxListTile(
+              title: Text(item),
+              value: tempSelected.contains(item),
+              onChanged: (value) {
+                setDialogState(() {
+                  if (value == true) {
+                    tempSelected.add(item);
+                  } else {
+                    tempSelected.remove(item);
+                  }
+                });
+              },
+            )).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectedIssueTypes = tempSelected;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+
 
 }
+

@@ -49,6 +49,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           'email': _emailController.text.trim(),
           'uid': userCredential.user!.uid,
           'createdAt': FieldValue.serverTimestamp(),
+          'role': 'tech', // Add role field
         });
 
         // ignore: use_build_context_synchronously

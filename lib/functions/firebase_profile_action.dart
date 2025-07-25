@@ -224,71 +224,33 @@ class FirebaseProfileActions {
     required String mobileNumber,
     required String email,
     required String designation,
-    XFile? profileImage,
+   required String profileImage,
   }) async {
     try {
-      String? imageUrl;
 
-      // if (profileImage != null) {
-      //   print('Testing storage connectivity...');
-      //   final bool isStorageAccessible = await testStorageConnectivity();
-        
-      //   if (!isStorageAccessible) {
-      //     return {
-      //       'success': false,
-      //       'message': 'Cannot access Firebase Storage. Please check your configuration.',
-      //     };
-      //   }
-
-      //   print('Starting image upload...');
-        
-      //   // Try the simple method first (most likely to work)
-      //   imageUrl = await uploadProfileImageSimple(profileImage);
-        
-      //   // If simple method fails, try primary upload method
-      //   if (imageUrl == null) {
-      //     print('Simple upload failed, trying primary method...');
-      //     imageUrl = await uploadProfileImage(profileImage);
-      //   }
-        
-      //   // If both fail, try alternative
-      //   if (imageUrl == null) {
-      //     print('Primary upload failed, trying alternative method...');
-      //     imageUrl = await uploadProfileImageAlternative(profileImage);
-      //   }
-        
-      //   if (imageUrl == null) {
-      //     return {
-      //       'success': false,
-      //       'message': 'Failed to upload profile image. Please check your internet connection and Firebase configuration.',
-      //     };
-      //   }
-        
-      //   print('Image uploaded successfully: $imageUrl');
-      // }
-
+  
       // Save profile data
       print('Saving profile data...');
       final bool success = await saveTechnicianProfile(
-        name: name,
+        fullName: name,
         employeeId: employeeId,
         mobileNumber: mobileNumber,
         email: email,
         designation: designation,
-        profileImageUrl: "sample",
+        profileImageUrl: profileImage,
       );
       
-      if (true) {
+      if (success) {
         return {
           'success': true,
           'message': 'Profile setup completed successfully',
-          'imageUrl': "sample",
+          'imageUrl': profileImage,
         };
-      // } else {
-      //   return {
-      //     'success': false,
-      //     'message': 'Profile image uploaded but failed to save profile data',
-      //   };
+      } else {
+        return {
+          'success': false,
+          'message': 'Profile image uploaded but failed to save profile data',
+        };
       }
     } catch (e) {
       print('Error in completeProfileSetup: $e');
@@ -301,7 +263,7 @@ class FirebaseProfileActions {
 
   /// Save technician profile data to Firestore
   static Future<bool> saveTechnicianProfile({
-    required String name,
+    required String fullName,
     required String employeeId,
     required String mobileNumber,
     required String email,
@@ -314,7 +276,7 @@ class FirebaseProfileActions {
 
       final Map<String, dynamic> profileData = {
         'uid': user.uid,
-        'name': name.trim(),
+        'fullName': fullName.trim(),
         'employeeId': employeeId.trim(),
         'mobileNumber': mobileNumber.trim(),
         'email': email.trim(),
@@ -326,7 +288,7 @@ class FirebaseProfileActions {
       };
 
       await _firestore
-          .collection(AppConstants.adminCollection)
+          .collection('technicians')
           .doc(user.uid)
           .set(profileData, SetOptions(merge: true));
 

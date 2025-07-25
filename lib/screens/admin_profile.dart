@@ -862,7 +862,7 @@ class _AdminProfileSetupPageState extends State<AdminProfileSetupPage> {
         if (doc.exists) {
           final data = doc.data() as Map<String, dynamic>;
           setState(() {
-            _nameController.text = data['name'] ?? '';
+            _nameController.text = data['fullName'] ?? '';
             _emailController.text = data['email'] ?? user.email ?? '';
             _phoneController.text = data['mobileNumber'] ?? '';
             _organizationController.text = data['employeeId'] ?? '';

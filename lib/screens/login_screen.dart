@@ -40,9 +40,52 @@ class _LoginScreenState extends State<LoginScreen> {
         print('Login successful for user: ${result.user?.uid}');
         print('User email verified: ${result.user?.emailVerified}');
 
-        // Check if user profile is complete
-        if (result.user != null) {
-          await _checkProfileAndNavigate(result.user!.uid);
+        // Role check: Only allow if role is technician
+        final userDoc = await _firestore.collection('technicians').doc(result.user!.uid).get();
+        if (userDoc.exists) {
+          final data = userDoc.data();
+          if (data != null && (data['role'] == null || data['role'] == 'tech')) {
+            // Proceed as before
+            await _checkProfileAndNavigate(result.user!.uid);
+          } else {
+            // Not a technician, sign out and show error
+            await _auth.signOut();
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Access Denied'),
+                  content: const Text('You are not authorized to use this app.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return;
+          }
+        } else {
+          // No technician document, sign out and show error
+          await _auth.signOut();
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Access Denied'),
+                content: const Text('You are not authorized to use this app.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return;
         }
         
       } on FirebaseAuthException catch (e) {
